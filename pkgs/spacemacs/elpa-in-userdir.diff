@@ -1,0 +1,13 @@
+diff --git a/core/core-configuration-layer.el b/core/core-configuration-layer.el
+index 42224cff9..2ba1aa0d4 100644
+--- a/core/core-configuration-layer.el
++++ b/core/core-configuration-layer.el
+@@ -136,7 +136,7 @@ subdirectory of ROOT is used."
+   "Hook executed at the end of configuration loading.")
+ 
+ (defconst configuration-layer--elpa-root-directory
+-  (concat spacemacs-start-directory "elpa/")
++  (concat user-emacs-directory "elpa/")
+   "Spacemacs ELPA root directory.")
+ 
+ (defconst configuration-layer--rollback-root-directory

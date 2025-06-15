@@ -1,0 +1,64 @@
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	required = true
+[alias]
+	a = add
+	am = commit --amend --no-edit
+	c = commit
+	co = checkout
+	cp = cherry-pick
+	d = diff
+	dh = diff HEAD
+	br = branch
+	f = fetch
+	fomm = fetch origin main:main
+	last = log -1 HEAD
+	lg = !"git lg1"
+	lg1 = log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
+	lg2 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n''          %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all
+	m = merge
+	r = remote
+	rb = rebase
+	rbi = rebase -i
+	s = status -s
+	st = status
+	p = push
+	psuh = push
+	head = rev-parse HEAD
+[push]
+	default = simple
+[hub]
+	protocol = ssh
+[color]
+	ui = true
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	#line-numbers = true
+	navigate = true    # use n and N to move between diff sections
+	light = false      # set to true if you're in a terminal w/ a light background color (e.g. the default macOS terminal)
+[merge]
+	conflictstyle = diff3
+[diff]
+	colorMoved = default
+[pull]
+	rebase = false
+[magithub]
+	online = false
+[magithub "status"]
+	includeStatusHeader = false
+	includePullRequestsSection = false
+	includeIssuesSection = false
+[user]
+	name = Dávid Szakállas
+	email = 5807322+dszakallas@users.noreply.github.com
+[core]
+	pager = delta
+	excludesfile = ~/.global.gitignore
+[init]
+	defaultBranch = main
+[github]
+	user = dszakallas
+[include]
+	path = ./.local/share/gitconfig
