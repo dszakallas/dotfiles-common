@@ -20,7 +20,6 @@ with lib;
       k9s
       fluxcd
       kustomize
-      vcluster
       skopeo
       oras
     ];
