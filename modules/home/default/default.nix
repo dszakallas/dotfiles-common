@@ -39,7 +39,7 @@ let
     jq
     yq-go
   ];
-  moduleName = "davids-dotfiles/default";
+  moduleName = "davids-dotfiles-common/home/default";
 in
 {
   imports = [

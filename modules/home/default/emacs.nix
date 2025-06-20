@@ -1,4 +1,4 @@
-{ packages, ... }:
+ctx@{ packages, ... }:
 {
   pkgs,
   config,
@@ -58,6 +58,7 @@ with lib;
       '';
     in
     {
+
       home.packages = with pkgs; [
         # lsp dependencies
         nodejs_24
@@ -65,6 +66,17 @@ with lib;
         cmakeMinimal
         glibtool
       ];
+      home.file.".gitconfig".text = ctx.lib.textRegion {
+        name = "dotfiles-common/home/emacs";
+        content = ''
+          [magithub]
+            online = false
+          [magithub "status"]
+            includeStatusHeader = false
+            includePullRequestsSection = false
+            includeIssuesSection = false
+        '';
+      };
       home.file.".davids/bin/ect" = {
         text = ''
           #!/bin/sh

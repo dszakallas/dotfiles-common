@@ -44,21 +44,10 @@
 	colorMoved = default
 [pull]
 	rebase = false
-[magithub]
-	online = false
-[magithub "status"]
-	includeStatusHeader = false
-	includePullRequestsSection = false
-	includeIssuesSection = false
-[user]
-	name = Dávid Szakállas
-	email = 5807322+dszakallas@users.noreply.github.com
 [core]
 	pager = delta
 	excludesfile = ~/.global.gitignore
 [init]
 	defaultBranch = main
-[github]
-	user = dszakallas
 [include]
 	path = ./.local/share/gitconfig
