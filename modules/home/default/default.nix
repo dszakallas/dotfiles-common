@@ -8,10 +8,15 @@
 }:
 with lib;
 let
-  unmanagedFile = f: ''
-    # Unmanaged local overrides
-    [[ -s "$HOME/.local/share/${f}" ]] && source "$HOME/.local/share/${f}"
-  '';
+  unmanagedFile =
+    f:
+    ctx.lib.textRegion {
+      name = moduleName;
+      content = ''
+        # Unmanaged local overrides
+        [[ -s "$HOME/.local/share/${f}" ]] && source "$HOME/.local/share/${f}"
+      '';
+    };
   files = with pkgs; [
     age
     bat
@@ -132,7 +137,6 @@ in
             );
         };
       };
-
     };
     programs = {
       vim = {
@@ -151,7 +155,6 @@ in
         settings = {
           ignorecase = true;
         };
-        extraConfig = builtins.readFile ./his.vimrc;
       };
 
       direnv = {

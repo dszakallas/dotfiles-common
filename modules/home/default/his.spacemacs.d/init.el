@@ -116,7 +116,7 @@ This function should only modify configuration layer settings."
           lsp-ui-doc-enable nil
           lsp-use-upstream-bindings t
           lsp-rust-server 'rust-analyzer
-          lsp-file-watch-ignored-directories '("vendor"))
+          lsp-file-watch-ignored-directories '(".devenv"))
      (dap :variables
           dap-enable-ui-controls nil ; don't display the mouse buttons
           dap-auto-configure-features '(sessions locals breakpoints expressions tooltip)) ; use the auto-configure layout, but no mouse buttons

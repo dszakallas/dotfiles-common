@@ -56,9 +56,9 @@ with lib;
         (add-to-list 'load-path spacemacs-start-directory)
         (load "${f}" nil t)
       '';
+      moduleName = "davids-dotfiles-common/home/emacs";
     in
     {
-
       home.packages = with pkgs; [
         # lsp dependencies
         nodejs_24
@@ -67,7 +67,7 @@ with lib;
         glibtool
       ];
       home.file.".gitconfig".text = ctx.lib.textRegion {
-        name = "dotfiles-common/home/emacs";
+        name = moduleName;
         content = ''
           [magithub]
             online = false
@@ -98,9 +98,6 @@ with lib;
         '';
         executable = true;
       };
-      programs.zsh.shellAliases = {
-        e = "ect";
-      };
       home.file.".spacemacs.d" = lib.mkIf config.davids.emacs.spacemacs.enable {
         source = ./his.spacemacs.d;
       };
@@ -112,6 +109,29 @@ with lib;
       };
       home.file.".emacs.d/dump-init.el" = lib.mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "dump-init";
+      };
+      programs.zsh = {
+        shellAliases = {
+          e = "ect";
+        };
+        initContent = ctx.lib.textRegion {
+          name = moduleName;
+          content = ''
+            if [ -n "$INSIDE_EMACS" ]; then
+              export EDITOR=ec
+            fi
+          '';
+        };
+      };
+      programs.bash = {
+        bashrcExtra = ctx.lib.textRegion {
+          name = moduleName;
+          content = ''
+            if [ -n "$INSIDE_EMACS" ]; then
+              export EDITOR=ec
+            fi
+          '';
+        };
       };
     }
   );
