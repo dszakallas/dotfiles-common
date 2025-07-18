@@ -146,7 +146,7 @@ This function should only modify configuration layer settings."
                                                             "HOMEBREW_PREFIX"
                                                             "LANG"
                                                             "LC_CTYPE"
-                                                            "NIX_CONFIG"
+                                                            ;; "NIX_CONFIG" ;; new lines borked
                                                             "NIX_PATH"
                                                             "NIX_PROFILES"
                                                             "NIX_REMOTE"
