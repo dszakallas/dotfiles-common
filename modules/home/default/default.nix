@@ -51,7 +51,6 @@ in
     (import ./fzf.nix ctx)
     (import ./github.nix ctx)
     (import ./k8s.nix ctx)
-    (import ./emacs.nix ctx)
   ] ++ (lib.optionals hostPlatform.isDarwin [ (import ./darwin ctx) ]);
   options = {
     davids.ssh.enable = mkEnableOption "SSH goodies";

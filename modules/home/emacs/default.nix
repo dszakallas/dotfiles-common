@@ -11,6 +11,19 @@ with lib;
   options = {
     davids.emacs = {
       enable = mkEnableOption "Emacs configuration";
+      daemon = mkOption {
+        default = { };
+        type = types.submodule {
+          options = {
+            enable = mkEnableOption "Enable Emacs daemon";
+          };
+        };
+      };
+      package = mkOption {
+        default = packages.${system}.davids-emacs;
+        type = types.package;
+        description = "Emacs package";
+      };
       spacemacs = mkOption {
         default = { };
         type = types.submodule {
@@ -59,13 +72,28 @@ with lib;
       moduleName = "davids-dotfiles-common/home/emacs";
     in
     {
-      home.packages = with pkgs; [
-        # lsp dependencies
-        nodejs_24
-        # vterm build dependencies
-        cmakeMinimal
-        glibtool
-      ];
+      launchd.agents."eu.szakallas.emacs" = mkIf pkgs.stdenv.hostPlatform.isDarwin {
+        enable = config.davids.emacs.daemon.enable;
+        config = {
+          ProgramArguments = [
+            "${config.davids.emacs.package}/bin/emacs"
+            "--fg-daemon"
+          ];
+          KeepAlive = true;
+        };
+      };
+
+      home.packages =
+        with pkgs;
+        [
+          # lsp dependencies
+          nodejs_24
+          # vterm build dependencies
+          cmakeMinimal
+          glibtool
+        ]
+        ++ [ config.davids.emacs.spacemacs.package ];
+
       home.file.".gitconfig".text = ctx.lib.textRegion {
         name = moduleName;
         content = ''
@@ -80,21 +108,29 @@ with lib;
       home.file.".davids/bin/ect" = {
         text = ''
           #!/bin/sh
-          exec emacsclient --tty "$@"
+          exec ${config.davids.emacs.package}/bin/emacsclient --tty "$@"
         '';
+        executable = true;
+      };
+      home.file.".davids/bin/emacs" = {
+        source = config.davids.emacs.package + /bin/emacs;
+        executable = true;
+      };
+      home.file.".davids/bin/emacsclient" = {
+        source = config.davids.emacs.package + /bin/emacsclient;
         executable = true;
       };
       home.file.".davids/bin/ecw" = {
         text = ''
           #!/bin/sh
-          exec emacsclient --reuse-frame -a "" "$@"
+          exec ${config.davids.emacs.package}/bin/emacsclient --reuse-frame -a "" "$@"
         '';
         executable = true;
       };
       home.file.".davids/bin/ec" = {
         text = ''
           #!/bin/sh
-          exec emacsclient "$@"
+          exec ${config.davids.emacs.package}/bin/emacsclient "$@"
         '';
         executable = true;
       };
