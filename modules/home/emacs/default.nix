@@ -94,7 +94,11 @@ with lib;
         ]
         ++ [ config.davids.emacs.spacemacs.package ];
 
-      home.file.".gitconfig".text = ctx.lib.textRegion {
+      davids.git.excludesLines = ctx.lib.textRegion {
+        name = moduleName;
+        content = builtins.readFile ./gitignore;
+      };
+      davids.git.configLines = ctx.lib.textRegion {
         name = moduleName;
         content = ''
           [magithub]
@@ -135,7 +139,7 @@ with lib;
         executable = true;
       };
       home.file.".spacemacs.d" = lib.mkIf config.davids.emacs.spacemacs.enable {
-        source = ./his.spacemacs.d;
+        source = ./spacemacs.d;
       };
       home.file.".emacs.d/init.el" = lib.mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "init";

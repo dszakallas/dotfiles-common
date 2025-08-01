@@ -5,18 +5,6 @@
 Icon
 ._*
 
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-.projectile
-.dir-locals.el
-
 # IntelliJ
 .idea/
 *.iml

@@ -44,14 +44,14 @@ let
     jq
     yq-go
   ];
-  moduleName = "davids-dotfiles-common/home/default";
+  moduleName = "davids-dotfiles-common/home/base";
 in
 {
   imports = [
     (import ./fzf.nix ctx)
-    (import ./github.nix ctx)
     (import ./k8s.nix ctx)
-  ] ++ (lib.optionals hostPlatform.isDarwin [ (import ./darwin ctx) ]);
+  ]
+  ++ (lib.optionals hostPlatform.isDarwin [ (import ./darwin ctx) ]);
   options = {
     davids.ssh.enable = mkEnableOption "SSH goodies";
     davids.ssh.knownHostsLines =
@@ -67,8 +67,33 @@ in
       description = "Default GPG key to use";
       default = "";
     };
+    davids.git = {
+      enable = mkEnableOption "Git goodies";
+      excludesLines = mkOption {
+        type = types.lines;
+        description = "Lines to add to the user-wide git excludes file";
+        default = "";
+      };
+      configLines = mkOption {
+        type = types.lines;
+        description = "Lines to add to the user-wide git config file";
+        default = "";
+      };
+    };
   };
   config = {
+    davids.git.excludesLines = mkIf config.davids.git.enable (
+      ctx.lib.textRegion {
+        name = moduleName;
+        content = builtins.readFile ./gitignore;
+      }
+    );
+    davids.git.configLines = mkIf config.davids.git.enable (
+      ctx.lib.textRegion {
+        name = moduleName;
+        content = builtins.readFile ./gitconfig;
+      }
+    );
     home = {
       packages = lists.flatten [
         adm
@@ -76,34 +101,33 @@ in
         dev
         nix
       ];
-      file.".gitconfig".text = ctx.lib.textRegion {
-        name = moduleName;
-        content = builtins.readFile ./his.gitconfig;
+      file.".gitconfig" = mkIf config.davids.git.enable {
+        text = config.davids.git.configLines;
       };
-      file.".global.gitignore".text = ctx.lib.textRegion {
-        name = moduleName;
-        content = builtins.readFile ./his.global.gitignore;
+      file.".gitexcludes" = mkIf config.davids.git.enable {
+        text = config.davids.git.excludesLines;
       };
       file.".vimrc".text = ctx.lib.textRegion {
         name = moduleName;
         comment-char = ''"'';
-        content = builtins.readFile ./his.vimrc;
+        content = builtins.readFile ./vimrc;
       };
       sessionVariables = {
         EDITOR = "vim";
         LANG = "en_US.UTF-8";
       };
-      shellAliases = {
-        la = "ls -la";
-        g = "git";
-        v = "vim";
-        docker = "podman";
-      };
+      shellAliases = mkMerge [
+        {
+          la = "ls -la";
+          v = "vim";
+          docker = "podman";
+        }
+        (mkIf config.davids.git.enable {
+          g = "git";
+        })
+      ];
       file.".ssh/davids.known_hosts" = mkIf config.davids.ssh.enable {
-        text = ctx.lib.textRegion {
-          name = moduleName;
-          content = config.davids.ssh.knownHostsLines;
-        };
+        text = config.davids.ssh.knownHostsLines;
       };
       file.".gnupg/gpg-agent.conf" = mkIf config.davids.gpg.enable {
         text = ctx.lib.textRegion {
@@ -118,22 +142,21 @@ in
       file.".gnupg/gpg.conf" = mkIf config.davids.gpg.enable {
         text = ctx.lib.textRegion {
           name = moduleName;
-          content =
-            ''
-              auto-key-retrieve
-              no-emit-version
-              personal-digest-preferences SHA512
-              cert-digest-algo SHA512
-              default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES192 AES CAST5 ZLIB BZIP2 ZIP Uncompressed
-            ''
-            + (
-              if config.davids.gpg.defaultKey != "" then
-                ''
-                  default-key ${config.davids.gpg.defaultKey};
-                ''
-              else
-                ""
-            );
+          content = ''
+            auto-key-retrieve
+            no-emit-version
+            personal-digest-preferences SHA512
+            cert-digest-algo SHA512
+            default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES192 AES CAST5 ZLIB BZIP2 ZIP Uncompressed
+          ''
+          + (
+            if config.davids.gpg.defaultKey != "" then
+              ''
+                default-key ${config.davids.gpg.defaultKey};
+              ''
+            else
+              ""
+          );
         };
       };
     };
@@ -175,13 +198,12 @@ in
       bash = {
         enable = true;
         bashrcExtra = unmanagedFile "bashrc";
-        profileExtra =
-          ''
-            export PATH="$HOME/.davids/bin:$PATH"
-            # Unmanaged executables
-            export PATH="$HOME/.local/bin:$PATH"
-          ''
-          + unmanagedFile "env";
+        profileExtra = ''
+          export PATH="$HOME/.davids/bin:$PATH"
+          # Unmanaged executables
+          export PATH="$HOME/.local/bin:$PATH"
+        ''
+        + unmanagedFile "env";
       };
 
       zsh = {
@@ -195,20 +217,19 @@ in
         };
 
         initContent = unmanagedFile "zshrc";
-        envExtra =
-          ''
-            export PATH="$HOME/.davids/bin:$PATH"
-            # Unmanaged executables
-            export PATH="$HOME/.local/bin:$PATH"
-          ''
-          + unmanagedFile "env";
+        envExtra = ''
+          export PATH="$HOME/.davids/bin:$PATH"
+          # Unmanaged executables
+          export PATH="$HOME/.local/bin:$PATH"
+        ''
+        + unmanagedFile "env";
 
         oh-my-zsh = {
           enable = true;
           plugins = [
-            "git"
             "direnv"
-          ];
+          ]
+          ++ lib.optionals config.davids.git.enable [ "git" ];
           theme = "clean";
         };
       };

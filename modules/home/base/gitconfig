@@ -46,7 +46,7 @@
 	rebase = false
 [core]
 	pager = delta
-	excludesfile = ~/.global.gitignore
+	excludesfile = ~/.gitexcludes
 [init]
 	defaultBranch = main
 [include]
