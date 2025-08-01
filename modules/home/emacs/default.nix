@@ -76,7 +76,7 @@ with lib;
         enable = config.davids.emacs.daemon.enable;
         config = {
           ProgramArguments = [
-            "${config.davids.emacs.package}/bin/emacs"
+            "${config.davids.emacs.package}/Applications/Emacs.app/Contents/MacOS/Emacs"
             "--fg-daemon"
           ];
           KeepAlive = true;
@@ -86,13 +86,16 @@ with lib;
       home.packages =
         with pkgs;
         [
+          config.davids.emacs.package
           # lsp dependencies
           nodejs_24
           # vterm build dependencies
           cmakeMinimal
           glibtool
         ]
-        ++ [ config.davids.emacs.spacemacs.package ];
+        ++ (lib.optionals config.davids.emacs.spacemacs.enable [
+          config.davids.emacs.spacemacs.package
+        ]);
 
       davids.git.excludesLines = ctx.lib.textRegion {
         name = moduleName;
@@ -114,14 +117,6 @@ with lib;
           #!/bin/sh
           exec ${config.davids.emacs.package}/bin/emacsclient --tty "$@"
         '';
-        executable = true;
-      };
-      home.file.".davids/bin/emacs" = {
-        source = config.davids.emacs.package + /bin/emacs;
-        executable = true;
-      };
-      home.file.".davids/bin/emacsclient" = {
-        source = config.davids.emacs.package + /bin/emacsclient;
         executable = true;
       };
       home.file.".davids/bin/ecw" = {

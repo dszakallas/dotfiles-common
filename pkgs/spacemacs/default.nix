@@ -5,16 +5,15 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "spacemacs";
-  version = "2024-06-19-develop";
+  version = "2025-07-30-develop";
   src = fetchFromGitHub {
     owner = "syl20bnr";
     repo = "spacemacs";
-    rev = "eb104f08c268f255c980886804af15a38ad1e3f8";
-    hash = "sha256-tc1IN0EhWlDtu1h4uXLdLw+q8+Ku9g5qhTtIkBXOZcI=";
+    rev = "214de2f3398dd8b7b402ff90802012837b8827a5";
+    hash = "sha256-a3EkS4tY+VXWqm61PmLnF0Zt94VAsoe5NmubaLPNxhE=";
   };
 
   patches = [
-    ./elpa-in-userdir.diff
     ./quelpa-build-writable.diff
   ];
 
