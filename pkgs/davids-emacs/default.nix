@@ -25,39 +25,32 @@ in
   (prev: {
     patches = (prev.patches or [ ]) ++ lib.optionals withNS nsPatches;
     # Add macOS application bundle for EmacsClient
-    postInstall = lib.concatStrings [
-      (prev.postInstall or "")
-      (lib.optionalString withNS ''
-        mkdir -p $out/Applications/EmacsClient.app/Contents/MacOS
-        cat << EOF > $out/Applications/EmacsClient.app/Contents/MacOS/EmacsClient
-        #!/bin/sh
-        exec $out/bin/emacsclient --reuse-frame "$@" &>/dev/null 2>&1 --alternate-editor="" &
-        EOF
-        chmod +x $out/Applications/EmacsClient.app/Contents/MacOS/EmacsClient
-        mkdir -p $out/Applications/EmacsClient.app/Contents/Resources
-        cp $out/Applications/Emacs.app/Contents/Resources/Emacs.icns $out/Applications/EmacsClient.app/Contents/Resources/Emacs.icns
-        cat << EOF > $out/Applications/EmacsClient.app/Contents/Info.plist
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-          <key>CFBundleExecutable</key>
-          <string>EmacsClient</string>
-          <key>CFBundleIdentifier</key>
-          <string>eu.szakallas.emacsclient</string>
-          <key>CFBundleName</key>
-          <string>EmacsClient</string>
-          <key>CFBundleVersion</key>
-          <string>${prev.version}</string>
-          <key>CFBundleShortVersionString</key>
-          <string>${prev.version}</string>
-          <key>CFBundlePackageType</key>
-          <string>APPL</string>
-          <key>CFBundleIconFile</key>
-          <string>Emacs.icns</string>
-        </dict>
-        </plist>
-        EOF
-      '')
-    ];
+    postInstall =
+      let
+        info = lib.generators.toPlist { escape = true; } {
+          CFBundleExecutable = "EmacsClient";
+          CFBundleIdentifier = "eu.szakallas.emacsclient";
+          CFBundleName = "EmacsClient";
+          CFBundleVersion = prev.version;
+          CFBundleShortVersionString = prev.version;
+          CFBundlePackageType = "APPL";
+          CFBundleIconFile = "Emacs.icns";
+        };
+      in
+      lib.concatStrings [
+        (prev.postInstall or "")
+        (lib.optionalString withNS ''
+          mkdir -p $out/Applications/EmacsClient.app/Contents/MacOS
+          cat << EOF > $out/Applications/EmacsClient.app/Contents/MacOS/EmacsClient
+          #!/bin/sh
+          exec $out/bin/emacsclient --reuse-frame "$@" &>/dev/null 2>&1 --alternate-editor="" &
+          EOF
+          chmod +x $out/Applications/EmacsClient.app/Contents/MacOS/EmacsClient
+          mkdir -p $out/Applications/EmacsClient.app/Contents/Resources
+          cp $out/Applications/Emacs.app/Contents/Resources/Emacs.icns $out/Applications/EmacsClient.app/Contents/Resources/Emacs.icns
+          cat << EOF > $out/Applications/EmacsClient.app/Contents/Info.plist
+          ${info}
+          EOF
+        '')
+      ];
   })
