@@ -779,7 +779,7 @@ before packages are loaded."
   (unless (file-exists-p (concat spacemacs-cache-directory "backups"))
     (make-directory (concat spacemacs-cache-directory "backups")))
 
-  (setq backup-directory-alist '(("." . (concat spacemacs-cache-directory "backups"))))
+  (setq backup-directory-alist `(("." . ,(concat spacemacs-cache-directory "backups"))))
 
   ;; projectile setup
   (with-eval-after-load 'projectile
