@@ -23,7 +23,6 @@
 
   nix = {
     settings = nixConfig;
-    nixPath = [ "nixpkgs=flake:nixpkgs" ];
   };
 
   home-manager = {
