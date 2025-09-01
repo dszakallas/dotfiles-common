@@ -30,7 +30,6 @@ with lib;
           options = {
             enable = mkEnableOption "Enable Spacemacs management";
             config = mkOption {
-              default = ./his.spacemacs.d;
               type = types.path;
               description = "Path to Spacemacs configuration";
             };
@@ -40,7 +39,7 @@ with lib;
                 "local"
               ];
               default = "package";
-              description = "Spacemacs source";
+              description = "Spacemacs source type (package or impure local dir)";
             };
             package = mkOption {
               default = packages.${system}.spacemacs;
@@ -49,7 +48,7 @@ with lib;
             };
             local = mkOption {
               type = types.str;
-              description = "Path to Spacemacs source";
+              description = "Spacemacs local path (used if source is 'local')";
             };
           };
         };
@@ -93,9 +92,12 @@ with lib;
           cmakeMinimal
           glibtool
         ]
-        ++ (lib.optionals config.davids.emacs.spacemacs.enable [
-          config.davids.emacs.spacemacs.package
-        ]);
+        ++ (lib.optionals
+          (config.davids.emacs.spacemacs.enable && config.davids.emacs.spacemacs.config == "package")
+          [
+            config.davids.emacs.spacemacs.package
+          ]
+        );
 
       davids.git.excludesLines = ctx.lib.textRegion {
         name = moduleName;
@@ -134,7 +136,7 @@ with lib;
         executable = true;
       };
       home.file.".spacemacs.d" = lib.mkIf config.davids.emacs.spacemacs.enable {
-        source = ./spacemacs.d;
+        source = config.davids.emacs.spacemacs.config;
       };
       home.file.".emacs.d/init.el" = lib.mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "init";
