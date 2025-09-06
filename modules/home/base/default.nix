@@ -1,8 +1,10 @@
-{ self, ... }@ctx:
+{ self, packages, ... }@ctx:
 {
   pkgs,
   config,
+  options,
   lib,
+  system,
   hostPlatform,
   ...
 }:
@@ -52,30 +54,48 @@ in
     (import ./k8s.nix ctx)
   ]
   ++ (lib.optionals hostPlatform.isDarwin [ (import ./darwin ctx) ]);
-  options = {
+  options = with types; {
     davids.ssh.enable = mkEnableOption "SSH goodies";
-    davids.ssh.knownHostsLines =
-      with types;
-      mkOption {
-        description = "Managed known_host file lines";
-        type = lines;
-        default = "";
-      };
+    davids.ssh.knownHostsLines = mkOption {
+      description = "Managed known_host file lines";
+      type = lines;
+      default = "";
+    };
+    davids.ssh.matchBlocks = mkOption {
+      type = types.attrsOf (
+        mergeTypes options.programs.ssh.matchBlocks.type.nestedTypes.elemType (submodule {
+          options = {
+            applyDefaults = mkOption {
+              type = bool;
+              description = "Whether to apply default settings";
+              default = true;
+            };
+            isFIDO2 = mkOption {
+              type = bool;
+              description = "Whether to use FIDO2 authentication";
+              default = false;
+            };
+          };
+        })
+      );
+      description = "SSH config matchBlocks";
+      default = { };
+    };
     davids.gpg.enable = mkEnableOption "GPG goodies";
     davids.gpg.defaultKey = mkOption {
-      type = types.str;
+      type = str;
       description = "Default GPG key to use";
       default = "";
     };
     davids.git = {
       enable = mkEnableOption "Git goodies";
       excludesLines = mkOption {
-        type = types.lines;
+        type = lines;
         description = "Lines to add to the user-wide git excludes file";
         default = "";
       };
       configLines = mkOption {
-        type = types.lines;
+        type = lines;
         description = "Lines to add to the user-wide git config file";
         default = "";
       };
@@ -201,6 +221,31 @@ in
 
         # default ~/.ssh/known_hosts is unmanaged. ~/.ssh/davids.known_hosts is managed by this module
         userKnownHostsFile = "~/.ssh/known_hosts ~/.ssh/davids.known_hosts";
+
+        matchBlocks = lib.mapAttrs (
+          _:
+          { applyDefaults, isFIDO2, ... }@v:
+          mkMerge [
+            (mkIf applyDefaults {
+              identitiesOnly = mkForce true;
+              extraOptions = lib.mkMerge [
+                { "AddKeysToAgent" = "yes"; }
+                (mkIf pkgs.stdenv.isDarwin { "UseKeychain" = "yes"; })
+              ];
+            })
+            # the default macOS ssh does not ship sk-libfido2 so we need to
+            # use to use a standalone library
+            (mkIf (isFIDO2 && pkgs.stdenv.isDarwin) {
+              extraOptions = {
+                "SecurityKeyProvider" = "${packages.${system}.openssh-sk-standalone}/lib/sk-libfido2.dylib";
+              };
+            })
+            (builtins.removeAttrs v [
+              "applyDefaults"
+              "isFIDO2"
+            ])
+          ]
+        ) config.davids.ssh.matchBlocks;
       };
 
       bash = {

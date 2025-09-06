@@ -38,7 +38,7 @@ rec {
     }:
     let
       ctx = (inputs // outputs);
-      lib = import ./lib { inherit (nixpkgs) lib; };
+      lib = import ./lib ctx;
       outputs =
         flake-utils.lib.eachDefaultSystem (system: {
           packages = (

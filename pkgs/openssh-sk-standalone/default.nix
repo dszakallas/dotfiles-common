@@ -1,3 +1,7 @@
+# Standalone build of the OpenSSH security key support library
+# Needed on macOS where the system OpenSSH does not include it
+# https://github.com/Yubico/libfido2/issues/464
+# https://github.com/openssh/openssh-portable/commit/ca0697a90e5720ba4d76cb0ae9d5572b5260a16c
 {
   libfido2,
   zlib,
@@ -9,6 +13,7 @@
   pkg-config,
 }:
 stdenv.mkDerivation rec {
+
   pname = "openssh-sk-standalone";
   version = "10.0p2";
 

@@ -1,6 +1,7 @@
 { ... }@ctx:
 {
   pkgs,
+  options,
   config,
   lib,
   ...
@@ -13,6 +14,14 @@ in
   options = {
     davids.github = {
       enable = mkEnableOption "GitHub configuration";
+      ssh = {
+        enable = mkEnableOption "Enable GitHub SSH configuration";
+        matchBlocks = mkOption {
+          type = options.davids.ssh.matchBlocks.type;
+          default = { };
+          description = "Partial SSH match block per GitHub SSH user (git, org-123, org-456, etc). The 'match' property is automatically set.";
+        };
+      };
     };
   };
   config = mkIf config.davids.github.enable {
@@ -35,5 +44,14 @@ in
         github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
       '';
     };
+    davids.ssh.matchBlocks = mkIf config.davids.github.ssh.enable (
+      mapAttrs' (n: v: {
+        name = "${n}@github.com";
+        value = mkMerge [
+          { match = mkForce "user ${n} host github.com"; }
+          v
+        ];
+      }) config.davids.github.ssh.matchBlocks
+    );
   };
 }

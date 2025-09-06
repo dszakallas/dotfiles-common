@@ -1,4 +1,7 @@
-{ lib, ... }:
+{ nixpkgs, ... }@ctx:
+let
+  inherit (nixpkgs) lib;
+in
 with lib;
 rec {
   # List immediate subdirectories of a directory
@@ -64,4 +67,6 @@ rec {
       all = ins // outs;
     in
     outs;
+
+  ssh = import ./ssh.nix ctx;
 }
