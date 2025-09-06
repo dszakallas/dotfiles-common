@@ -1,7 +1,6 @@
 {
   stdenvNoCC,
   fetchFromGitHub,
-  ...
 }:
 stdenvNoCC.mkDerivation {
   pname = "spacemacs";

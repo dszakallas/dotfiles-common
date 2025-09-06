@@ -8,7 +8,6 @@
   # https://github.com/NixOS/nixpkgs/issues/395169
   # however, I have not seen any issues on macOS 15.5
   withNativeCompilation ? true,
-  ...
 }:
 # These patches mainly fix GUI issues on macOS, I sourced them from
 # https://github.com/d12frosted/homebrew-emacs-plus
