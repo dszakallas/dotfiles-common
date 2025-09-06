@@ -67,6 +67,4 @@ rec {
       all = ins // outs;
     in
     outs;
-
-  ssh = import ./ssh.nix ctx;
 }
