@@ -1,21 +1,26 @@
 { ... }:
 {
-  pkgs,
   config,
+  lib,
+  pkgs,
   system,
   ...
 }:
-with pkgs;
-with lib;
 let
+  inherit (lib)
+    mkEnableOption
+    mkIf
+    mkOption
+    types
+    ;
   brew = config.davids.brew;
 in
 {
-  options = with types; {
+  options = {
     davids.brew = {
       enable = mkEnableOption "Homebrew integration";
       prefix = mkOption {
-        type = str;
+        type = types.str;
         default = "/opt/homebrew";
         description = "Homebrew installation prefix";
       };

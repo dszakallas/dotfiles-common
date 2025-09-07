@@ -1,15 +1,26 @@
 { self, packages, ... }@ctx:
 {
-  pkgs,
   config,
-  options,
-  lib,
-  system,
   hostPlatform,
+  lib,
+  options,
+  pkgs,
+  system,
   ...
 }:
-with lib;
 let
+  inherit (lib)
+    flatten
+    mapAttrs
+    mapAttrs'
+    mkEnableOption
+    mkForce
+    mkIf
+    mkMerge
+    mkOption
+    optionals
+    types
+    ;
   unmanagedFile =
     f:
     ctx.lib.textRegion {
@@ -53,54 +64,65 @@ in
     (import ./fzf.nix ctx)
     (import ./k8s.nix ctx)
   ]
-  ++ (lib.optionals hostPlatform.isDarwin [ (import ./darwin ctx) ]);
-  options = with types; {
-    davids.ssh.enable = mkEnableOption "SSH goodies";
-    davids.ssh.knownHostsLines = mkOption {
-      description = "Managed known_host file lines";
-      type = lines;
-      default = "";
-    };
-    davids.ssh.matchBlocks = mkOption {
-      type = types.attrsOf (
-        mergeTypes options.programs.ssh.matchBlocks.type.nestedTypes.elemType (submodule {
-          options = {
-            applyDefaults = mkOption {
-              type = bool;
-              description = "Whether to apply default settings";
-              default = true;
-            };
-            isFIDO2 = mkOption {
-              type = bool;
-              description = "Whether to use FIDO2 authentication";
-              default = false;
-            };
-          };
-        })
-      );
-      description = "SSH config matchBlocks";
-      default = { };
-    };
-    davids.gpg.enable = mkEnableOption "GPG goodies";
-    davids.gpg.defaultKey = mkOption {
-      type = str;
-      description = "Default GPG key to use";
-      default = "";
-    };
-    davids.git = {
-      enable = mkEnableOption "Git goodies";
-      excludesLines = mkOption {
+  ++ (optionals hostPlatform.isDarwin [ (import ./darwin ctx) ]);
+  options =
+    let
+      inherit (types)
+        mergeTypes
+        lines
+        attrsOf
+        submodule
+        bool
+        str
+        ;
+    in
+    {
+      davids.ssh.enable = mkEnableOption "SSH goodies";
+      davids.ssh.knownHostsLines = mkOption {
+        description = "Managed known_host file lines";
         type = lines;
-        description = "Lines to add to the user-wide git excludes file";
         default = "";
       };
-      configLines = mkOption {
-        type = lines;
-        description = "Lines to add to the user-wide git config file";
+      davids.ssh.matchBlocks = mkOption {
+        type = attrsOf (
+          mergeTypes options.programs.ssh.matchBlocks.type.nestedTypes.elemType (submodule {
+            options = {
+              applyDefaults = mkOption {
+                type = bool;
+                description = "Whether to apply default settings";
+                default = true;
+              };
+              isFIDO2 = mkOption {
+                type = bool;
+                description = "Whether to use FIDO2 authentication";
+                default = false;
+              };
+            };
+          })
+        );
+        description = "SSH config matchBlocks";
+        default = { };
+      };
+      davids.gpg.enable = mkEnableOption "GPG goodies";
+      davids.gpg.defaultKey = mkOption {
+        type = str;
+        description = "Default GPG key to use";
         default = "";
       };
+      davids.git = {
+        enable = mkEnableOption "Git goodies";
+        excludesLines = mkOption {
+          type = lines;
+          description = "Lines to add to the user-wide git excludes file";
+          default = "";
+        };
+        configLines = mkOption {
+          type = lines;
+          description = "Lines to add to the user-wide git config file";
+          default = "";
+        };
+      };
     };
-  };
   config = {
     davids.git.excludesLines = mkIf config.davids.git.enable (
       ctx.lib.textRegion {
@@ -115,7 +137,7 @@ in
       }
     );
     home = {
-      packages = lists.flatten [
+      packages = flatten [
         adm
         files
         dev
@@ -178,7 +200,7 @@ in
             default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES192 AES CAST5 ZLIB BZIP2 ZIP Uncompressed
           ''
           + (
-            if config.davids.gpg.defaultKey != "" then
+            if (config.davids.gpg.defaultKey != "") then
               ''
                 default-key ${config.davids.gpg.defaultKey};
               ''
@@ -214,39 +236,64 @@ in
         nix-direnv.enable = true;
       };
 
-      ssh = mkIf config.davids.ssh.enable {
-        enable = true;
-        # Unmanaged local overrides
-        includes = [ "~/.local/share/ssh/config" ];
+      ssh = mkIf config.davids.ssh.enable (
+        let
+          wildcardHostConfig = {
+            forwardAgent = false;
+            addKeysToAgent = "no";
+            compression = false;
+            serverAliveInterval = 0;
+            serverAliveCountMax = 3;
+            hashKnownHosts = false;
+            # default ~/.ssh/known_hosts is unmanaged. ~/.ssh/davids.known_hosts is managed by this module
+            userKnownHostsFile = "~/.ssh/known_hosts ~/.ssh/davids.known_hosts";
+            controlMaster = "no";
+            controlPath = "~/.ssh/master-%r@%n:%p";
+            controlPersist = "no";
+          };
+        in
+        {
+          enable = true;
+          # trace: warning: davidszakallas profile: `programs.ssh` default values will be removed in the future.
+          enableDefaultConfig = false;
+          # Unmanaged local overrides
+          includes = [ "~/.local/share/ssh/config" ];
 
-        # default ~/.ssh/known_hosts is unmanaged. ~/.ssh/davids.known_hosts is managed by this module
-        userKnownHostsFile = "~/.ssh/known_hosts ~/.ssh/davids.known_hosts";
-
-        matchBlocks = lib.mapAttrs (
-          _:
-          { applyDefaults, isFIDO2, ... }@v:
-          mkMerge [
-            (mkIf applyDefaults {
-              identitiesOnly = mkForce true;
-              extraOptions = lib.mkMerge [
-                { "AddKeysToAgent" = "yes"; }
-                (mkIf pkgs.stdenv.isDarwin { "UseKeychain" = "yes"; })
-              ];
-            })
-            # the default macOS ssh does not ship sk-libfido2 so we need to
-            # use to use a standalone library
-            (mkIf (isFIDO2 && pkgs.stdenv.isDarwin) {
-              extraOptions = {
-                "SecurityKeyProvider" = "${packages.${system}.openssh-sk-standalone}/lib/sk-libfido2.dylib";
-              };
-            })
-            (builtins.removeAttrs v [
-              "applyDefaults"
-              "isFIDO2"
-            ])
-          ]
-        ) config.davids.ssh.matchBlocks;
-      };
+          matchBlocks = mapAttrs (
+            n:
+            {
+              applyDefaults ? true,
+              isFIDO2 ? false,
+              identityFile ? null,
+              ...
+            }@v:
+            let
+              hasIdentityFile = (v.identityFile or "") != "";
+            in
+            mkMerge [
+              (mkIf (n == "*") wildcardHostConfig)
+              (mkIf applyDefaults {
+                identitiesOnly = mkIf hasIdentityFile (mkForce true);
+                addKeysToAgent = mkIf hasIdentityFile (mkForce "yes");
+                extraOptions = mkMerge [
+                  (mkIf (pkgs.stdenv.isDarwin && hasIdentityFile) { "UseKeychain" = "yes"; })
+                ];
+              })
+              # the default macOS ssh does not ship sk-libfido2 so we need to
+              # use to use a standalone library
+              (mkIf (hasIdentityFile && isFIDO2 && pkgs.stdenv.isDarwin) {
+                extraOptions = {
+                  "SecurityKeyProvider" = "${packages.${system}.openssh-sk-standalone}/lib/sk-libfido2.dylib";
+                };
+              })
+              (builtins.removeAttrs v [
+                "applyDefaults"
+                "isFIDO2"
+              ])
+            ]
+          ) ({ "*" = { }; } // config.davids.ssh.matchBlocks);
+        }
+      );
 
       bash = {
         enable = true;
@@ -282,7 +329,7 @@ in
           plugins = [
             "direnv"
           ]
-          ++ lib.optionals config.davids.git.enable [ "git" ];
+          ++ optionals config.davids.git.enable [ "git" ];
           theme = "clean";
         };
       };

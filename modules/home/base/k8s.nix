@@ -5,7 +5,12 @@
   lib,
   ...
 }:
-with lib;
+let
+  inherit (lib)
+    mkEnableOption
+    mkIf
+    ;
+in
 {
   options = {
     davids.k8stools = {

@@ -6,8 +6,16 @@
   lib,
   ...
 }:
-with lib;
 let
+  inherit (lib)
+    mapAttrs'
+    mkEnableOption
+    mkForce
+    mkIf
+    mkMerge
+    mkOption
+    types
+    ;
   moduleName = "davids-dotfiles-common/home/github";
 in
 {

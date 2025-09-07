@@ -6,7 +6,15 @@ ctx@{ packages, ... }:
   system,
   ...
 }:
-with lib;
+let
+  inherit (lib)
+    mkEnableOption
+    mkIf
+    mkOption
+    optionals
+    types
+    ;
+in
 {
   options = {
     davids.emacs = {
@@ -92,7 +100,7 @@ with lib;
           cmakeMinimal
           glibtool
         ]
-        ++ (lib.optionals
+        ++ (optionals
           (config.davids.emacs.spacemacs.enable && config.davids.emacs.spacemacs.config == "package")
           [
             config.davids.emacs.spacemacs.package
@@ -135,16 +143,16 @@ with lib;
         '';
         executable = true;
       };
-      home.file.".spacemacs.d" = lib.mkIf config.davids.emacs.spacemacs.enable {
+      home.file.".spacemacs.d" = mkIf config.davids.emacs.spacemacs.enable {
         source = config.davids.emacs.spacemacs.config;
       };
-      home.file.".emacs.d/init.el" = lib.mkIf config.davids.emacs.spacemacs.enable {
+      home.file.".emacs.d/init.el" = mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "init";
       };
-      home.file.".emacs.d/early-init.el" = lib.mkIf config.davids.emacs.spacemacs.enable {
+      home.file.".emacs.d/early-init.el" = mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "early-init";
       };
-      home.file.".emacs.d/dump-init.el" = lib.mkIf config.davids.emacs.spacemacs.enable {
+      home.file.".emacs.d/dump-init.el" = mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "dump-init";
       };
       programs.zsh = {

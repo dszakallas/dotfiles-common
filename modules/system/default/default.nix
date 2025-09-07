@@ -33,7 +33,7 @@
 
   environment.etc."hosts" = {
     # TODO Linking the hosts file to /etc/hosts in darwin doesn't work.
-    enable = if pkgs.stdenv.hostPlatform.isDarwin then false else true;
+    enable = !pkgs.stdenv.hostPlatform.isDarwin;
     text = lib.textRegion {
       name = "davids-dotfiles/default";
       content = (builtins.readFile ./hosts);

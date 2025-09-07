@@ -2,12 +2,11 @@
 let
   inherit (nixpkgs) lib;
 in
-with lib;
 rec {
   # List immediate subdirectories of a directory
   subDirs =
     d:
-    foldlAttrs (
+    lib.foldlAttrs (
       a: k: v:
       a // (if v == "directory" then { ${k} = d + "/${k}"; } else { })
     ) { } (builtins.readDir d);
