@@ -1,15 +1,6 @@
 { nixpkgs, ... }@ctx:
 let
   inherit (nixpkgs) lib;
-in
-rec {
-  # List immediate subdirectories of a directory
-  subDirs =
-    d:
-    lib.foldlAttrs (
-      a: k: v:
-      a // (if v == "directory" then { ${k} = d + "/${k}"; } else { })
-    ) { } (builtins.readDir d);
 
   # Annotate a region of text for simpler identification of origin
   textRegion =
@@ -24,46 +15,82 @@ rec {
       ${comment-char} +end ${name}
     '';
 
-  # Return the list of importable names in a directory.
-  # Importable name is either
-  # - a regular file with the nix extension
-  # - or a directory containing default.nix.
-  importables =
-    root:
-    let
-      children = builtins.readDir root;
-    in
-    (builtins.attrNames (
-      lib.attrsets.filterAttrs (
-        n: t:
-        (t == "regular" && (builtins.match ".+\\.nix$" n) != null)
-        || (t == "directory" && builtins.pathExists (root + "/${n}/default.nix"))
-      ) children
-    ));
+  # Walk a directory of nix files recursively and map each leaf with a function.
+  # A leaf is either a nix file or a directory containing default.nix.
+  mapRec =
+    { node, mapf }:
+    if builtins.pathExists (node + "/default.nix") then
+      mapf (node + "/default.nix")
+    else
+      let
+        entries = builtins.readDir node;
+        files = builtins.filter (f: builtins.match ".+\\.nix$" f != null && f != "default.nix") (
+          builtins.attrNames entries
+        );
+        dirs = builtins.filter (f: entries.${f} == "directory") (builtins.attrNames entries);
+        fileAttrs = builtins.listToAttrs (
+          builtins.map (f: {
+            name =
+              let
+                m = (builtins.match "(.+)\\.nix$" f);
+              in
+              if m != null then builtins.head m else f;
+            value = mapf "${node}/${f}";
+          }) files
+        );
+        dirAttrs = builtins.listToAttrs (
+          builtins.map (f: {
+            name = f;
+            value = mapRec {
+              node = "${node}/${f}";
+              inherit mapf;
+            };
+          }) dirs
+        );
+        overlappingKeys = builtins.filter (k: builtins.hasAttr k fileAttrs) (builtins.attrNames dirAttrs);
+      in
+      if overlappingKeys != [ ] then
+        throw "importRec: overlapping keys in directory ${node}: ${lib.concatStringsSep ", " overlappingKeys}"
+      else
+        fileAttrs // dirAttrs;
 
-  # Import each importable in the dir and return as an attrset keyed by their names.
-  importDir =
-    d: arg:
-    builtins.foldl' (a: name: a // { ${name} = import "${d}/${name}" arg; }) { } (importables d);
+  # Import a directory of nix files recursively.
+  importRec =
+    node:
+    mapRec {
+      inherit node;
+      mapf = import;
+    };
+
+  # Import a directory of nix files recursively with a given argument.
+  importRec1 =
+    node: a:
+    mapRec {
+      inherit node;
+      mapf = n: import n a;
+    };
 
   # Like callPackageWith but for a while directory.
   # The directory should contain nix files, or directories containing default.nix files that define packages.
   # The packages are imported with their file basename as the attribute name.
-  callPackageDirWith =
-    root: ins:
+  callPackageWithRec =
+    pkgs: node:
     let
       callPkg = lib.callPackageWith all;
-      outs = builtins.listToAttrs (
-        builtins.map (f: {
-          name =
-            let
-              m = (builtins.match "(.+)\\.nix$" f);
-            in
-            if m != null then builtins.head m else f;
-          value = callPkg (root + ("/" + f)) { };
-        }) (importables root)
-      );
-      all = ins // outs;
+      outs = mapRec {
+        inherit node;
+        mapf = f: callPkg f { };
+      };
+      all = pkgs // outs;
     in
     outs;
+
+in
+{
+  inherit
+    textRegion
+    importRec
+    importRec1
+    callPackageWithRec
+    ;
 }

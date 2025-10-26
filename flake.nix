@@ -44,15 +44,15 @@ rec {
           packages = (
             let
               pkgs = nixpkgs.legacyPackages.${system};
-              packages = lib.callPackageDirWith ./pkgs (inputs // pkgs);
+              packages = lib.callPackageWithRec (inputs // pkgs) ./pkgs;
             in
             packages
           );
         })
         // flake-utils.lib.eachDefaultSystemPassThrough (system: {
           inherit lib;
-          systemModules = lib.importDir ./modules/system ctx;
-          homeModules = lib.importDir ./modules/home ctx;
+          systemModules = lib.importRec1 ./modules/system ctx;
+          homeModules = lib.importRec1 ./modules/home ctx;
         });
     in
     outputs;
