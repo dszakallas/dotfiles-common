@@ -61,6 +61,7 @@ in
     (import ./ssh.nix ctx)
     (import ./fzf.nix ctx)
     (import ./k8s.nix ctx)
+    (import ./go.nix ctx)
   ]
   ++ (optionals hostPlatform.isDarwin [ (import ./darwin.nix ctx) ]);
   options =

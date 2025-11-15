@@ -4,12 +4,12 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "spacemacs";
-  version = "2025-07-30-develop";
+  version = "2025-11-14-develop";
   src = fetchFromGitHub {
     owner = "syl20bnr";
     repo = "spacemacs";
-    rev = "214de2f3398dd8b7b402ff90802012837b8827a5";
-    hash = "sha256-a3EkS4tY+VXWqm61PmLnF0Zt94VAsoe5NmubaLPNxhE=";
+    rev = "ccd3e200c2f88c3eb8b465fc00f34adc4d1d28fd";
+    hash = "sha256-gQgeLa8O1NG34XqZ9TWUsfdAbPC4FcLeegXK6dFeZfY=";
   };
 
   patches = [
