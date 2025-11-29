@@ -244,7 +244,7 @@ in
             "direnv"
           ]
           ++ optionals config.davids.git.enable [ "git" ];
-          theme = "clean";
+          theme = "fino-time";
         };
       };
     };
