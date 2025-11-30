@@ -62,6 +62,7 @@ in
     (import ./fzf.nix ctx)
     (import ./k8s.nix ctx)
     (import ./go.nix ctx)
+    (import ./python.nix ctx)
   ]
   ++ (optionals hostPlatform.isDarwin [ (import ./darwin.nix ctx) ]);
   options =
