@@ -38,6 +38,7 @@ let
     rsync
     sops
     tree
+    zstd
   ];
   adm = with pkgs; [
     htop
