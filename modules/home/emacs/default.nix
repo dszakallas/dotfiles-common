@@ -37,11 +37,7 @@ in
         type = types.submodule {
           options = {
             enable = mkEnableOption "Enable Spacemacs management";
-            config = mkOption {
-              type = types.path;
-              description = "Path to Spacemacs configuration";
-            };
-            source = mkOption {
+            type = mkOption {
               type = types.enum [
                 "package"
                 "local"
@@ -56,7 +52,19 @@ in
             };
             local = mkOption {
               type = types.str;
-              description = "Spacemacs local path (used if source is 'local')";
+              description = "Spacemacs local path (used if type is 'local')";
+            };
+            config = mkOption {
+              default = { };
+              type = types.submodule {
+                options = {
+                  enable = mkEnableOption "Enable Spacemacs configuration management";
+                  path = mkOption {
+                    type = types.path;
+                    description = "Path to Spacemacs configuration";
+                  };
+                };
+              };
             };
           };
         };
@@ -67,7 +75,7 @@ in
     let
       pkg = config.davids.emacs.spacemacs.package;
       spacemacs-start-directory =
-        if config.davids.emacs.spacemacs.source == "package" then
+        if config.davids.emacs.spacemacs.type == "package" then
           "${pkg.out}/share/spacemacs"
         else
           config.davids.emacs.spacemacs.local;
@@ -101,7 +109,7 @@ in
           glibtool
         ]
         ++ (optionals
-          (config.davids.emacs.spacemacs.enable && config.davids.emacs.spacemacs.config == "package")
+          (config.davids.emacs.spacemacs.enable && config.davids.emacs.spacemacs.type == "package")
           [
             config.davids.emacs.spacemacs.package
           ]
@@ -143,9 +151,11 @@ in
         '';
         executable = true;
       };
-      home.file.".spacemacs.d" = mkIf config.davids.emacs.spacemacs.enable {
-        source = config.davids.emacs.spacemacs.config;
-      };
+      home.file.".spacemacs.d" =
+        mkIf (config.davids.emacs.spacemacs.enable && config.davids.emacs.spacemacs.config.enable)
+          {
+            source = config.davids.emacs.spacemacs.config.path;
+          };
       home.file.".emacs.d/init.el" = mkIf config.davids.emacs.spacemacs.enable {
         text = loadSpacemacsInit "init";
       };
