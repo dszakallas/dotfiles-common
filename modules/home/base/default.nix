@@ -34,6 +34,7 @@ let
     fswatch
     gawk
     gnused
+    gnumake
     ripgrep
     rsync
     sops
@@ -41,11 +42,12 @@ let
     zstd
   ];
   adm = with pkgs; [
+    btop
+    dig
     htop
     ncdu
     nmap
     tmux
-    dig
   ];
   nix = with pkgs; [
     devenv

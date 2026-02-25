@@ -19,17 +19,18 @@ in
   };
   config = mkIf config.davids.k8stools.enable {
     home.packages = with pkgs; [
+      fluxcd
+      k9s
       kind
+      kubecolor
       kubectl
       kubernetes-helm
-      k9s
-      fluxcd
       kustomize
-      skopeo
       oras
+      skopeo
     ];
     programs.zsh.shellAliases = {
-      k = "kubectl";
+      k = "kubecolor";
     };
   };
 }
