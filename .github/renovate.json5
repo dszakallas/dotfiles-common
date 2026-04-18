@@ -16,4 +16,7 @@
       "matchUpdateTypes": ["minor", "patch"]
     }
   ]
+  "nix": {
+    "enabled": true,
+  },
 }
