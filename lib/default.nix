@@ -35,14 +35,14 @@ let
                 m = (builtins.match "(.+)\\.nix$" f);
               in
               if m != null then builtins.head m else f;
-            value = mapf "${node}/${f}";
+            value = mapf (node + "/${f}");
           }) files
         );
         dirAttrs = builtins.listToAttrs (
           builtins.map (f: {
             name = f;
             value = mapRec {
-              node = "${node}/${f}";
+              node = node + "/${f}";
               inherit mapf;
             };
           }) dirs
