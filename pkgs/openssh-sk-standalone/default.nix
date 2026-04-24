@@ -15,13 +15,13 @@
 stdenv.mkDerivation rec {
 
   pname = "openssh-sk-standalone";
-  version = "10.0p2";
+  version = "V_10_3_P1";
 
   src = fetchFromGitHub {
     owner = "openssh";
     repo = "openssh-portable";
-    rev = "V_${builtins.replaceStrings [ "." "p" ] [ "_" "_P" ] version}";
-    sha256 = "sha256-+hYVcNByprz104Ly/h4mQXwO3GWQHIC7YIVCgWhh9As=";
+    rev = version;
+    hash = "sha256-hLmNauPe38AkSe9WIDBuxWS2LhwVI/gR8jWJxaCsk4Q=";
   };
 
   preConfigure = ''
@@ -45,9 +45,15 @@ stdenv.mkDerivation rec {
     ./configure --prefix=$out --with-security-key-standalone
   '';
 
+  buildPhase = ''
+    # Only build what's needed for the security key library
+    target=$(grep -Po '(?<=SK_STANDALONE=).*' Makefile)
+    make openbsd-compat/libopenbsd-compat.a libssh-pic.a $target
+  '';
+
   installPhase = ''
-    lib=$(grep -Po '(?<=SK_STANDALONE=).*' Makefile)
+    target=$(grep -Po '(?<=SK_STANDALONE=).*' Makefile)
     mkdir -p $out/lib
-    cp $lib $out/lib/
+    cp $target $out/lib/
   '';
 }
