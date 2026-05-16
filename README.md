@@ -10,6 +10,7 @@ Structure:
 │   ├── darwin             # reusable modules for macOS
 │   ├── nixos              # reusable modules for nixOS
 │   ├── system             # reusable modules for unix-like systems (nixOS, darwin, etc.)
-│   └── home               # reusable modules for home manager
+│   ├── devenv             # reusable modules for my projects managed with devenv.sh
+│   └── home               # reusable modules for home manager
 └── pkgs                   # packages
 ```

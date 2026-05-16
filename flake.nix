@@ -53,6 +53,7 @@ rec {
           inherit lib;
           systemModules = lib.importRec1 ./modules/system ctx;
           homeModules = lib.importRec1 ./modules/home ctx;
+          devenvModules = lib.importRec1 ./modules/devenv ctx;
         });
     in
     outputs;
