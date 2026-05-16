@@ -38,6 +38,16 @@ let
             default = null;
             description = "HTTP headers for HTTP MCP servers (e.g., for authentication).";
           };
+          trust = lib.mkOption {
+            type = lib.types.nullOr lib.types.bool;
+            default = null;
+            description = "Whether to trust the MCP server without prompting.";
+          };
+          timeout = lib.mkOption {
+            type = lib.types.nullOr lib.types.int;
+            default = null;
+            description = "Timeout for MCP server requests in milliseconds.";
+          };
         };
       }
     );
@@ -135,6 +145,44 @@ let
           ) [ "url" ]
         else
           cleanedServer
+      else if agent == "claude" then
+        let
+          serverWithoutTrustTimeout = builtins.removeAttrs cleanedServer [
+            "trust"
+            "timeout"
+          ];
+        in
+        (
+          if server.trust != null then
+            lib.warn "MCP server '${name}': Claude Code trust is UI-driven and not supported in .mcp.json."
+          else
+            (x: x)
+        )
+          (
+            if server.timeout != null then
+              lib.warn "MCP server '${name}': Claude Code timeout is set via MCP_TIMEOUT env var and not supported in .mcp.json."
+            else
+              (x: x)
+          )
+          (serverWithoutTrustTimeout // { type = serverType; })
+      else if agent == "copilot" then
+        if serverType == "sse" then
+          lib.warn "MCP server '${name}': sse transport is deprecated for GitHub Copilot." (
+            cleanedServer // { type = "sse"; }
+          )
+        else
+          cleanedServer // { type = serverType; }
+      else if agent == "vscode" then
+        let
+          serverWithoutTrust = builtins.removeAttrs cleanedServer [ "trust" ];
+        in
+        (
+          if server.trust != null then
+            lib.warn "MCP server '${name}': VSCode Copilot trust is UI-driven and not supported in mcp.json."
+          else
+            (x: x)
+        )
+          (serverWithoutTrust // { type = serverType; })
       else
         cleanedServer
     ) value;
@@ -144,6 +192,14 @@ in
     agents.augment.enable = lib.mkEnableOption "Enable augment coding agent.";
     agents.augment.settings.enable = lib.mkEnableOption "Enable augment coding agent setting configuration.";
     agents.augment.settings.mcpServers = mcpServers;
+
+    agents.claude.enable = lib.mkEnableOption "Enable Claude coding agent.";
+    agents.claude.settings.enable = lib.mkEnableOption "Enable Claude coding agent setting configuration.";
+    agents.claude.settings.mcpServers = mcpServers;
+
+    agents.copilot.enable = lib.mkEnableOption "Enable GitHub Copilot coding agent.";
+    agents.copilot.settings.enable = lib.mkEnableOption "Enable GitHub Copilot coding agent setting configuration.";
+    agents.copilot.settings.mcpServers = mcpServers;
 
     agents.gemini.enable = lib.mkEnableOption "Enable gemini coding agent.";
     agents.gemini.settings.enable = lib.mkEnableOption "Enable gemini coding agent setting configuration.";
@@ -178,6 +234,31 @@ in
           }}
           EOF
           chmod 600 $DEVENV_ROOT/.augment/mcp.json
+        '';
+        before = [ "devenv:enterShell" ];
+      };
+      "claude:setup" = lib.mkIf (config.agents.claude.enable && config.agents.claude.settings.enable) {
+        description = "Setup Claude coding agent.";
+        exec = ''
+          cat << EOF > $DEVENV_ROOT/.mcp.json
+          ${builtins.toJSON {
+            mcpServers = convertMcpServersToAgentFormat "claude" config.agents.claude.settings.mcpServers;
+          }}
+          EOF
+          chmod 600 $DEVENV_ROOT/.mcp.json
+        '';
+        before = [ "devenv:enterShell" ];
+      };
+      "copilot:setup" = lib.mkIf (config.agents.copilot.enable && config.agents.copilot.settings.enable) {
+        description = "Setup GitHub Copilot coding agent.";
+        exec = ''
+          mkdir -p ${config.devenv.root}/.copilot
+          cat << EOF > $DEVENV_ROOT/.copilot/mcp-config.json
+          ${builtins.toJSON {
+            mcpServers = convertMcpServersToAgentFormat "copilot" config.agents.copilot.settings.mcpServers;
+          }}
+          EOF
+          chmod 600 $DEVENV_ROOT/.copilot/mcp-config.json
         '';
         before = [ "devenv:enterShell" ];
       };
