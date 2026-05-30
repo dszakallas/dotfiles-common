@@ -2,7 +2,23 @@
 
 Common dotfile configuration for most of my machines.
 
-Structure:
+## Documentation
+
+- [Library Functions](lib/README.md)
+
+## Flake Outputs
+
+This flake exports the following top-level structures:
+
+- `packages`: Custom packages built per system from the `pkgs/` directory.
+- `lib`: Reusable [Library Functions](lib/README.md) and utilities.
+- `systemModules`: Reusable system-wide modules mapped from `modules/system/`.
+- `homeModules`: Reusable Home Manager modules mapped from `modules/home/`.
+- `devenvModules`: Reusable modules for `devenv.sh` environments mapped from `modules/devenv/`.
+
+## Development
+
+Folder structure:
 
 ```text
 ├── lib                    # library functions

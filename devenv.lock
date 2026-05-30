@@ -1,21 +1,5 @@
 {
   "nodes": {
-    "davids-devenvs": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1763156205,
-        "narHash": "sha256-XAGBG+aL0Yw77Ft85Ox9CZ/roW9BI9wpgSda2F/3fKs=",
-        "owner": "dszakallas",
-        "repo": "devenvs",
-        "rev": "e8e71d4688e373929b24bdfa15cfadf09f77a9c2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "dszakallas",
-        "repo": "devenvs",
-        "type": "github"
-      }
-    },
     "devenv": {
       "locked": {
         "dir": "src/modules",
@@ -130,7 +114,6 @@
     },
     "root": {
       "inputs": {
-        "davids-devenvs": "davids-devenvs",
         "devenv": "devenv",
         "git-hooks": "git-hooks",
         "nixpkgs": "nixpkgs"

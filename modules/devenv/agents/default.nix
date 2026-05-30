@@ -1,4 +1,4 @@
-_:
+ctx:
 { lib, config, ... }:
 let
   mcpServers = lib.mkOption {
@@ -11,7 +11,8 @@ let
               "http"
               "sse"
             ];
-            description = "Type of MCP server connection.";
+            default = "stdio";
+            description = "Transport type of the MCP server.";
           };
           command = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
@@ -28,32 +29,21 @@ let
             default = null;
             description = "Environment variables for stdio MCP servers.";
           };
-          url = lib.mkOption {
+          serverUrl = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             default = null;
-            description = "URL for HTTP MCP servers.";
+            description = "URL for HTTP or SSE MCP servers.";
           };
           headers = lib.mkOption {
             type = lib.types.nullOr (lib.types.attrsOf lib.types.str);
             default = null;
-            description = "HTTP headers for HTTP MCP servers (e.g., for authentication).";
-          };
-          trust = lib.mkOption {
-            type = lib.types.nullOr lib.types.bool;
-            default = null;
-            description = "Whether to trust the MCP server without prompting.";
-          };
-          timeout = lib.mkOption {
-            type = lib.types.nullOr lib.types.int;
-            default = null;
-            description = "Timeout for MCP server requests in milliseconds.";
+            description = "HTTP headers for HTTP or SSE MCP servers (e.g., for authentication).";
           };
         };
       }
     );
     default = {
       devenv = {
-        type = "stdio";
         command = "devenv";
         args = [ "mcp" ];
         env = {
@@ -68,24 +58,20 @@ let
     example = lib.literalExpression ''
       {
         awslabs-iam-mcp-server = {
-          type = "stdio";
           command = lib.getExe pkgs.awslabs-iam-mcp-server;
           args = [ ];
           env = { };
         };
         github = {
-          type = "http";
-          url = "https://api.githubcopilot.com/mcp/";
+          serverUrl = "https://api.githubcopilot.com/mcp/";
           headers = {
             Authorization = "Bearer GITHUB_PAT";
           };
         };
         linear = {
-          type = "http";
-          url = "https://mcp.linear.app/mcp";
+          httpUrl = "https://mcp.linear.app/mcp";
         };
         devenv = {
-          type = "stdio";
           command = "devenv";
           args = [ "mcp" ];
           env = {
@@ -95,181 +81,85 @@ let
       }
     '';
   };
-  convertMcpServersToAgentFormat =
-    agent: value:
-    lib.mapAttrs (
-      name: server:
-      let
-        serverType = server.type or null;
-
-        # Validate mutually exclusive fields
-        stdioFields = [
-          "command"
-          "args"
-          "env"
-        ];
-        httpFields = [
-          "url"
-          "headers"
-        ];
-
-        hasStdioField = builtins.any (field: server.${field} or null != null) stdioFields;
-        hasHttpField = builtins.any (field: server.${field} or null != null) httpFields;
-
-        validated =
-          if serverType == "stdio" && hasHttpField then
-            throw "MCP server '${name}': stdio type cannot have 'url' or 'headers' fields"
-          else if (serverType == "http" || serverType == "sse") && hasStdioField then
-            throw "MCP server '${name}': http/sse type cannot have 'command', 'args', or 'env' fields"
-          else
-            server;
-
-        # Filter out null values and mutually exclusive fields
-        filtered = lib.filterAttrs (_: v: v != null) validated;
-
-        cleanedServer =
-          if serverType == "stdio" then
-            builtins.removeAttrs filtered (httpFields ++ [ "type" ])
-          else if serverType == "http" || serverType == "sse" then
-            builtins.removeAttrs filtered (stdioFields ++ [ "type" ])
-          else
-            builtins.removeAttrs filtered [ "type" ];
-      in
-      if agent == "gemini" then
-        if serverType == "http" then
-          builtins.removeAttrs (
-            cleanedServer
-            // {
-              httpUrl = filtered.url;
-            }
-          ) [ "url" ]
-        else
-          cleanedServer
-      else if agent == "claude" then
-        let
-          serverWithoutTrustTimeout = builtins.removeAttrs cleanedServer [
-            "trust"
-            "timeout"
-          ];
-        in
-        (
-          if server.trust != null then
-            lib.warn "MCP server '${name}': Claude Code trust is UI-driven and not supported in .mcp.json."
-          else
-            (x: x)
-        )
-          (
-            if server.timeout != null then
-              lib.warn "MCP server '${name}': Claude Code timeout is set via MCP_TIMEOUT env var and not supported in .mcp.json."
-            else
-              (x: x)
-          )
-          (serverWithoutTrustTimeout // { type = serverType; })
-      else if agent == "copilot" then
-        if serverType == "sse" then
-          lib.warn "MCP server '${name}': sse transport is deprecated for GitHub Copilot." (
-            cleanedServer // { type = "sse"; }
-          )
-        else
-          cleanedServer // { type = serverType; }
-      else if agent == "vscode" then
-        let
-          serverWithoutTrust = builtins.removeAttrs cleanedServer [ "trust" ];
-        in
-        (
-          if server.trust != null then
-            lib.warn "MCP server '${name}': VSCode Copilot trust is UI-driven and not supported in mcp.json."
-          else
-            (x: x)
-        )
-          (serverWithoutTrust // { type = serverType; })
-      else
-        cleanedServer
-    ) value;
 in
 {
   options = {
-    agents.augment.enable = lib.mkEnableOption "Enable augment coding agent.";
-    agents.augment.settings.enable = lib.mkEnableOption "Enable augment coding agent setting configuration.";
-    agents.augment.settings.mcpServers = mcpServers;
+    agents.mcp.enable = lib.mkEnableOption "Enable generic MCP configuration.";
+    agents.mcp.servers = mcpServers;
 
     agents.claude.enable = lib.mkEnableOption "Enable Claude coding agent.";
-    agents.claude.settings.enable = lib.mkEnableOption "Enable Claude coding agent setting configuration.";
-    agents.claude.settings.mcpServers = mcpServers;
+    agents.claude.mcp.enable = lib.mkEnableOption "Enable Claude MCP configuration.";
+    agents.claude.mcp.servers = lib.mkOption {
+      type = lib.types.attrs;
+      default = { };
+      description = "Claude MCP servers configuration.";
+    };
 
     agents.copilot.enable = lib.mkEnableOption "Enable GitHub Copilot coding agent.";
-    agents.copilot.settings.enable = lib.mkEnableOption "Enable GitHub Copilot coding agent setting configuration.";
-    agents.copilot.settings.mcpServers = mcpServers;
+    agents.copilot.mcp.enable = lib.mkEnableOption "Enable GitHub Copilot MCP configuration.";
+    agents.copilot.mcp.servers = lib.mkOption {
+      type = lib.types.attrs;
+      default = { };
+      description = "GitHub Copilot MCP servers configuration.";
+    };
 
     agents.gemini.enable = lib.mkEnableOption "Enable gemini coding agent.";
     agents.gemini.settings.enable = lib.mkEnableOption "Enable gemini coding agent setting configuration.";
-    agents.gemini.settings.mcpServers = mcpServers;
+    agents.gemini.settings.value = lib.mkOption {
+      type = lib.types.attrs;
+      default = { };
+      description = "Gemini settings configuration.";
+    };
 
     agents.vscode.enable = lib.mkEnableOption "Enable VSCode Copilot coding agent.";
-    agents.vscode.settings.enable = lib.mkEnableOption "Enable VSCode Copilot coding agent setting configuration.";
-    agents.vscode.settings.mcpServers = mcpServers;
+    agents.vscode.mcp.enable = lib.mkEnableOption "Enable VSCode Copilot MCP configuration.";
+    agents.vscode.mcp.servers = lib.mkOption {
+      type = lib.types.attrs;
+      default = { };
+      description = "VSCode Copilot MCP servers configuration.";
+    };
   };
 
   config = {
-    # I do this horrible hack for now, as auggie does not support
-    # workspace config for mcp servers and I don't want to pull
-    # in a derivation just yet.
-    scripts.auggie = lib.mkIf config.agents.augment.enable {
-      exec = ''
-        AUGGIE_PATH=$(which auggie)
-        AUGGIE_DIR=$(dirname "$AUGGIE_PATH")
-        export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "^$AUGGIE_DIR$" | tr '\n' ':' | sed 's/:$//')
-        $(which auggie) --mcp-config "$DEVENV_ROOT/.augment/mcp.json" "$@"
-      '';
-    };
-
     tasks = {
-      "augment:setup" = lib.mkIf (config.agents.augment.enable && config.agents.augment.settings.enable) {
-        description = "Setup Augment coding agent.";
+      "mcp:setup" = lib.mkIf config.agents.mcp.enable {
+        description = "Setup generic coding agent configuration.";
         exec = ''
-          mkdir -p ${config.devenv.root}/.augment
-          cat << EOF > $DEVENV_ROOT/.augment/mcp.json
-          ${builtins.toJSON {
-            mcpServers = convertMcpServersToAgentFormat "augment" config.agents.augment.settings.mcpServers;
-          }}
+          mkdir -p $DEVENV_ROOT/.agents
+          cat << EOF > $DEVENV_ROOT/.agents/mcp_config.json
+          ${builtins.toJSON { mcpServers = config.agents.mcp.servers; }}
           EOF
-          chmod 600 $DEVENV_ROOT/.augment/mcp.json
+          chmod 600 $DEVENV_ROOT/.agents/mcp_config.json
         '';
         before = [ "devenv:enterShell" ];
       };
-      "claude:setup" = lib.mkIf (config.agents.claude.enable && config.agents.claude.settings.enable) {
+      "claude:setup" = lib.mkIf (config.agents.claude.enable && config.agents.claude.mcp.enable) {
         description = "Setup Claude coding agent.";
         exec = ''
           cat << EOF > $DEVENV_ROOT/.mcp.json
-          ${builtins.toJSON {
-            mcpServers = convertMcpServersToAgentFormat "claude" config.agents.claude.settings.mcpServers;
-          }}
+          ${builtins.toJSON config.agents.claude.mcp.servers}
           EOF
           chmod 600 $DEVENV_ROOT/.mcp.json
         '';
         before = [ "devenv:enterShell" ];
       };
-      "copilot:setup" = lib.mkIf (config.agents.copilot.enable && config.agents.copilot.settings.enable) {
+      "copilot:setup" = lib.mkIf (config.agents.copilot.enable && config.agents.copilot.mcp.enable) {
         description = "Setup GitHub Copilot coding agent.";
         exec = ''
           mkdir -p ${config.devenv.root}/.copilot
           cat << EOF > $DEVENV_ROOT/.copilot/mcp-config.json
-          ${builtins.toJSON {
-            mcpServers = convertMcpServersToAgentFormat "copilot" config.agents.copilot.settings.mcpServers;
-          }}
+          ${builtins.toJSON config.agents.copilot.mcp.servers}
           EOF
           chmod 600 $DEVENV_ROOT/.copilot/mcp-config.json
         '';
         before = [ "devenv:enterShell" ];
       };
-      "vscode:setup" = lib.mkIf (config.agents.vscode.enable && config.agents.vscode.settings.enable) {
+      "vscode:setup" = lib.mkIf (config.agents.vscode.enable && config.agents.vscode.mcp.enable) {
         description = "Setup VSCode Copilot coding agent.";
         exec = ''
           mkdir -p ${config.devenv.root}/.vscode
           cat << EOF > $DEVENV_ROOT/.vscode/mcp.json
-          ${builtins.toJSON {
-            servers = convertMcpServersToAgentFormat "vscode" config.agents.vscode.settings.mcpServers;
-          }}
+          ${builtins.toJSON config.agents.vscode.mcp.servers}
           EOF
           chmod 600 $DEVENV_ROOT/.vscode/mcp.json
         '';
@@ -280,12 +170,7 @@ in
         exec = ''
           mkdir -p ${config.devenv.root}/.gemini
           cat << EOF > $DEVENV_ROOT/.gemini/settings.json
-          ${builtins.toJSON {
-            mcpServers = convertMcpServersToAgentFormat "gemini" config.agents.gemini.settings.mcpServers;
-            context = {
-              fileName = [ "AGENTS.md" ];
-            };
-          }}
+          ${builtins.toJSON config.agents.gemini.settings.value}
           EOF
           chmod 600 $DEVENV_ROOT/.gemini/settings.json
         '';

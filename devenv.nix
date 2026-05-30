@@ -1,4 +1,49 @@
-{ ... }:
-
+{ config, nixpkgs, ... }@args:
+let
+  inherit (nixpkgs) lib;
+  lib' = (import ./lib args);
+  ctx = {
+    lib = lib';
+  };
+  mcpServers = {
+    "github" = {
+      "type" = "http";
+      "serverUrl" = "https://api.githubcopilot.com/mcp/";
+    };
+  };
+in
 {
+  imports = (lib.attrsets.attrValues (lib'.importRec1 ./modules/devenv ctx));
+  profiles = {
+    "test-agents".module = {
+      agents.mcp = {
+        enable = true;
+        servers = mcpServers;
+      };
+      agents.vscode = {
+        enable = true;
+        mcp.enable = true;
+        mcp.servers = lib'.agents.mcpServersForAgent "vscode" mcpServers;
+      };
+      agents.claude = {
+        enable = true;
+        mcp.enable = true;
+        mcp.servers = lib'.agents.mcpServersForAgent "claude" mcpServers;
+      };
+      agents.copilot = {
+        enable = true;
+        mcp.enable = true;
+        mcp.servers = lib'.agents.mcpServersForAgent "copilot" mcpServers;
+      };
+      agents.gemini = {
+        enable = true;
+        settings.enable = true;
+        settings.value = lib'.agents.mcpServersForAgent "gemini" mcpServers // {
+          context = {
+            fileName = [ "AGENTS.md" ];
+          };
+        };
+      };
+    };
+  };
 }
