@@ -33,6 +33,8 @@ let
               throw "MCP server '${name}': ${serverType} type must have 'serverUrl'"
             else if serverType == "stdio" && server.command or null == null then
               throw "MCP server '${name}': stdio type must have 'command'"
+            else if serverType == "stdio" && server.args or null == null then
+              server // { args = [ ]; }
             else
               server;
 
