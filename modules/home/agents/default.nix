@@ -23,6 +23,7 @@ let
       defaultMemoryFile,
       defaultLinkSkills ? false,
       defaultSkillsDirectory ? "${defaultUserDirectory}/skills",
+      sessionVariables ? { },
     }:
     {
       options = {
@@ -64,49 +65,44 @@ let
             default = defaultMemoryFile;
             description = "Path to the target file for the main memory file.";
           };
-          extraImports = mkOption {
-            type = types.listOf (
-              types.submodule {
-                options = {
-                  enable = mkEnableOption "this memory import";
-                  target = mkOption {
-                    type = types.str;
-                    description = "The target file name in the memory directory.";
-                  };
-                  content = mkOption {
-                    type = types.lines;
-                    default = "";
-                    description = "Content of the imported memory file.";
-                  };
-                  source = mkOption {
-                    type = types.nullOr types.path;
-                    default = null;
-                    description = "Source derivation or path for the imported memory file.";
-                  };
-                };
-              }
-            );
-            default = [ ];
-            description = "List of additional memory files to import.";
-          };
           source = mkOption {
             type = types.nullOr types.path;
             default = null;
             description = "Path to the source file for the main memory file.";
           };
         };
+        rules = mkOption {
+          type = types.attrsOf (
+            types.submodule {
+              options = {
+                enable = mkEnableOption "this rule file";
+                content = mkOption {
+                  type = types.lines;
+                  default = "";
+                  description = "Content of the rule file.";
+                };
+                source = mkOption {
+                  type = types.nullOr types.path;
+                  default = null;
+                  description = "Source path for the rule file.";
+                };
+              };
+            }
+          );
+          default = { };
+          description = "Modular rule files for ${name}.";
+        };
       };
 
       config =
         let
           cfg = config.davids.agents.${name};
-          memoryBaseDir = "${config.home.homeDirectory}/${cfg.memory.directory}";
-          memoryFile = "${memoryBaseDir}/${cfg.memory.target}";
-          unmanagedFile = "${memoryBaseDir}/unmanaged.MEMORY.MD";
+          memoryFile = "${config.home.homeDirectory}/${cfg.memory.directory}/${cfg.memory.target}";
         in
         mkIf cfg.enable (mkMerge [
           {
             home.packages = if cfg.package == null then [ ] else [ cfg.package ];
+            home.sessionVariables = sessionVariables;
           }
           (mkIf (cfg.linkSkills && config.davids.agents.skills.enable) {
             home.file = lib.mapAttrs' (skillName: src: {
@@ -116,54 +112,19 @@ let
               };
             }) config.davids.agents.skills.entries;
           })
-          (mkIf cfg.memory.enable (mkMerge [
-            {
-              home.file."${memoryFile}".source = pkgs.runCommand "${name}-memory-with-imports" { } ''
-                cat ${
-                  if cfg.memory.source != null then
-                    cfg.memory.source
-                  else
-                    pkgs.writeText "content" (if cfg.memory.content != null then cfg.memory.content else "")
-                } > $out; echo "" >> $out; echo -n '${
-                  lib.concatStringsSep "\n" (
-                    map (m: "@./${m.target}") (builtins.filter (m: m.enable) cfg.memory.extraImports)
-                  )
-                }
-                ' >> $out'';
-            }
-            {
-              home.activation."initUnmanagedMemory${name}" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-                  $DRY_RUN_CMD mkdir -p $VERBOSE_ARG "${memoryBaseDir}"
-                  if [[ ! -f "${unmanagedFile}" ]]; then
-                    $DRY_RUN_CMD cat <<EOF > "${unmanagedFile}"
-                # Unmanaged Memory for ${name}
-
-                <!--
-                This file is for your private, local-only agent memory.
-                Unlike '${cfg.memory.target}', this file is NOT managed by Nix.
-                It will never be overwritten, and it is safe to edit manually.
-
-                Use this for:
-                - Personal secrets or local-only context.
-                - Temporary notes you don't want to commit to your dotfiles.
-                - Machine-specific configuration hints.
-                -->
-                EOF
-                    $DRY_RUN_CMD chmod $VERBOSE_ARG 644 "${unmanagedFile}"
-                  fi
-              '';
-            }
-            {
-              home.file = builtins.listToAttrs (
-                map (
-                  m:
-                  lib.nameValuePair "${memoryBaseDir}/${m.target}" (
-                    if m.source != null then { source = m.source; } else { text = m.content; }
-                  )
-                ) (builtins.filter (m: m.enable) cfg.memory.extraImports)
-              );
-            }
-          ]))
+          (mkIf (cfg.rules != { }) {
+            home.file = lib.mapAttrs' (ruleName: rule: {
+              name = "${cfg.userDirectory}/rules/${ruleName}";
+              value = if rule.source != null then { source = rule.source; } else { text = rule.content; };
+            }) (lib.filterAttrs (_: r: r.enable) cfg.rules);
+          })
+          (mkIf cfg.memory.enable {
+            home.file."${memoryFile}" =
+              if cfg.memory.source != null then
+                { source = cfg.memory.source; }
+              else
+                { text = if cfg.memory.content != null then cfg.memory.content else ""; };
+          })
         ]);
     };
 
@@ -180,6 +141,9 @@ let
     defaultUserDirectory = ".claude";
     defaultMemoryFile = "CLAUDE.md";
     defaultLinkSkills = true;
+    sessionVariables = {
+      CLAUDE_CONFIG_DIR = "$HOME/.claude";
+    };
   };
 
   copilotModule = mkAgentModule {
@@ -197,6 +161,14 @@ let
     defaultMemoryFile = "GEMINI.md";
     defaultLinkSkills = true;
   };
+
+  opencodeModule = mkAgentModule {
+    name = "opencode";
+    defaultPackage = pkgs.opencode;
+    defaultUserDirectory = ".config/opencode";
+    defaultMemoryFile = "AGENTS.md";
+    defaultLinkSkills = true;
+  };
 in
 {
   options.davids.agents = {
@@ -205,6 +177,7 @@ in
     claude = claudeModule.options;
     copilot = copilotModule.options;
     antigravity = antigravityModule.options;
+    opencode = opencodeModule.options;
     skills = {
       enable = mkEnableOption "agent skills";
       entries = mkOption {
@@ -220,6 +193,7 @@ in
     claudeModule.config
     copilotModule.config
     antigravityModule.config
+    opencodeModule.config
     (mkIf config.davids.agents.skills.enable {
       home.file = lib.mapAttrs' (name: src: {
         name = ".agents/skills/${name}";
