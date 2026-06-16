@@ -121,9 +121,17 @@ let
     in
     if agent == "vscode" then { servers = formattedServers; } else { mcpServers = formattedServers; };
 
+  memory = {
+    commitConventions = ''
+      ## Commit conventions
+
+      Do not add AI attribution postscripts (e.g. `Co-Authored-By: Claude ...`) to commit messages.
+    '';
+  };
+
 in
 {
   agents = {
-    inherit mcpServersForAgent;
+    inherit mcpServersForAgent memory;
   };
 }
