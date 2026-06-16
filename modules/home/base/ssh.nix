@@ -30,9 +30,10 @@ in
   options =
     let
       inherit (types)
-        mergeTypes
         lines
         attrsOf
+        nullOr
+        str
         submodule
         bool
         ;
@@ -46,23 +47,27 @@ in
         default = "";
       };
       davids.ssh.matchBlocks = mkOption {
-        type = attrsOf (
-          mergeTypes options.programs.ssh.matchBlocks.type.nestedTypes.elemType (submodule {
-            options = {
-              applyDefaults = mkOption {
-                type = bool;
-                description = "Whether to apply default settings";
-                default = true;
-              };
-              isFIDO2 = mkOption {
-                type = bool;
-                description = "Whether to use FIDO2 authentication";
-                default = false;
-              };
+        type = attrsOf (submodule {
+          freeformType = types.attrsOf types.anything;
+          options = {
+            applyDefaults = mkOption {
+              type = bool;
+              description = "Whether to apply default settings";
+              default = true;
             };
-          })
-        );
-        description = "SSH config matchBlocks";
+            isFIDO2 = mkOption {
+              type = bool;
+              description = "Whether to use FIDO2 authentication";
+              default = false;
+            };
+            match = mkOption {
+              type = nullOr str;
+              description = "SSH Match criteria (sets the block header)";
+              default = null;
+            };
+          };
+        });
+        description = "SSH config blocks";
         default = { };
       };
     };
@@ -95,17 +100,17 @@ in
       ssh = mkIf config.davids.ssh.enable (
         let
           wildcardHostConfig = {
-            forwardAgent = false;
-            addKeysToAgent = "no";
-            compression = false;
-            serverAliveInterval = 0;
-            serverAliveCountMax = 3;
-            hashKnownHosts = false;
+            ForwardAgent = false;
+            AddKeysToAgent = "no";
+            Compression = false;
+            ServerAliveInterval = 0;
+            ServerAliveCountMax = 3;
+            HashKnownHosts = false;
             # default ~/.ssh/known_hosts is unmanaged. ~/.ssh/davids.known_hosts is managed by this module
-            userKnownHostsFile = "~/.ssh/known_hosts ~/.ssh/davids.known_hosts";
-            controlMaster = "no";
-            controlPath = "~/.ssh/master-%r@%n:%p";
-            controlPersist = "no";
+            UserKnownHostsFile = "~/.ssh/known_hosts ~/.ssh/davids.known_hosts";
+            ControlMaster = "no";
+            ControlPath = "~/.ssh/master-%r@%n:%p";
+            ControlPersist = "no";
           };
         in
         {
@@ -115,37 +120,35 @@ in
           # Unmanaged local overrides
           includes = [ "~/.local/share/ssh/config" ];
 
-          matchBlocks = mapAttrs (
+          settings = mapAttrs (
             n:
             {
               applyDefaults ? true,
               isFIDO2 ? false,
-              identityFile ? null,
+              match ? null,
               ...
             }@v:
             let
-              hasIdentityFile = (v.identityFile or "") != "";
+              identityFile = v.IdentityFile or [ ];
+              hasIdentityFile = identityFile != [ ] && identityFile != null && identityFile != "";
             in
             mkMerge [
               (mkIf (n == "*") wildcardHostConfig)
-              (mkIf applyDefaults {
-                identitiesOnly = mkIf hasIdentityFile (mkForce true);
-                addKeysToAgent = mkIf hasIdentityFile (mkForce "yes");
-                extraOptions = mkMerge [
-                  (mkIf (pkgs.stdenv.isDarwin && hasIdentityFile) { "UseKeychain" = "yes"; })
-                ];
-              })
-              # the default macOS ssh does not ship sk-libfido2 so we need to
-              # use to use a standalone library
-              (mkIf (hasIdentityFile && isFIDO2 && pkgs.stdenv.isDarwin) {
-                extraOptions = {
-                  "SecurityKeyProvider" = "${standaloneFIDO2}";
-                };
-              })
+              (if match != null then { header = "Match ${match}"; } else { })
               (builtins.removeAttrs v [
                 "applyDefaults"
                 "isFIDO2"
+                "match"
               ])
+              (mkIf applyDefaults {
+                IdentitiesOnly = mkIf hasIdentityFile (mkForce true);
+                AddKeysToAgent = mkIf hasIdentityFile (mkForce "yes");
+                # the default macOS ssh does not ship sk-libfido2 so we need to use a standalone library
+                UseKeychain = mkIf (pkgs.stdenv.isDarwin && hasIdentityFile) "yes";
+              })
+              (mkIf (hasIdentityFile && isFIDO2 && pkgs.stdenv.isDarwin) {
+                SecurityKeyProvider = "${standaloneFIDO2}";
+              })
             ]
           ) ({ "*" = { }; } // config.davids.ssh.matchBlocks);
         }
