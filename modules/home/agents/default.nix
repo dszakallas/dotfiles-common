@@ -23,6 +23,7 @@ let
       defaultMemoryFile,
       defaultLinkSkills ? false,
       defaultSkillsDirectory ? "${defaultUserDirectory}/skills",
+      defaultMcpTarget ? null,
       sessionVariables ? { },
     }:
     {
@@ -92,6 +93,19 @@ let
           default = { };
           description = "Modular rule files for ${name}.";
         };
+        mcp = {
+          enable = mkEnableOption "user-level MCP servers for ${name}";
+          target = mkOption {
+            type = types.nullOr types.str;
+            default = defaultMcpTarget;
+            description = "Config file (relative to home) that ${name} MCP servers are merged into.";
+          };
+          servers = mkOption {
+            type = types.attrs;
+            default = { };
+            description = "Agent-shaped MCP servers object (as produced by mcpServersForAgent) merged into ${name}'s config file.";
+          };
+        };
       };
 
       config =
@@ -125,6 +139,30 @@ let
               else
                 { text = if cfg.memory.content != null then cfg.memory.content else ""; };
           })
+          # User-level MCP servers are merged into the agent's own config file
+          # (which the agent itself also writes to), so we can't symlink it from
+          # the store. Instead replace the managed top-level key while preserving
+          # siblings, mirroring the devenv `jq -s '.[0] + .[1]'` merge.
+          (mkIf (cfg.mcp.enable && cfg.mcp.target != null) (
+            let
+              managed = pkgs.writeText "${name}-mcp.json" (builtins.toJSON cfg.mcp.servers);
+              mergeScript = pkgs.writeShellScript "${name}-mcp-merge" ''
+                set -eu
+                target="$1"
+                managed="$2"
+                mkdir -p "$(dirname "$target")"
+                [ -e "$target" ] || echo '{}' > "$target"
+                ${pkgs.jq}/bin/jq -s '.[0] + .[1]' "$target" "$managed" > "$target.tmp"
+                mv "$target.tmp" "$target"
+                chmod 600 "$target"
+              '';
+            in
+            {
+              home.activation."${name}Mcp" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                run ${mergeScript} "${config.home.homeDirectory}/${cfg.mcp.target}" ${managed}
+              '';
+            }
+          ))
         ]);
     };
 
@@ -133,6 +171,7 @@ let
     defaultPackage = pkgs.gemini-cli;
     defaultUserDirectory = ".gemini";
     defaultMemoryFile = "GEMINI.md";
+    defaultMcpTarget = ".gemini/settings.json";
   };
 
   claudeModule = mkAgentModule {
@@ -141,6 +180,7 @@ let
     defaultUserDirectory = ".claude";
     defaultMemoryFile = "CLAUDE.md";
     defaultLinkSkills = true;
+    defaultMcpTarget = ".claude.json";
     sessionVariables = {
       CLAUDE_CONFIG_DIR = "$HOME/.claude";
     };
@@ -151,6 +191,7 @@ let
     defaultPackage = pkgs.github-copilot-cli;
     defaultUserDirectory = ".copilot";
     defaultMemoryFile = "copilot-instructions.md";
+    defaultMcpTarget = ".copilot/mcp-config.json";
   };
 
   antigravityModule = mkAgentModule {
@@ -168,6 +209,7 @@ let
     defaultUserDirectory = ".config/opencode";
     defaultMemoryFile = "AGENTS.md";
     defaultLinkSkills = true;
+    defaultMcpTarget = ".config/opencode/opencode.json";
   };
 in
 {

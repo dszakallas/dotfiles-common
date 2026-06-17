@@ -115,11 +115,32 @@ let
             ) [ "serverUrl" ]
           else
             (cleanedServer // { type = serverType; })
+        else if agent == "opencode" then
+          # opencode uses its own schema: servers live under `mcp`, the transport
+          # is `local`/`remote`, stdio command+args collapse into a single array,
+          # and env vars are named `environment`.
+          if serverType == "http" || serverType == "sse" then
+            {
+              type = "remote";
+              url = filtered.serverUrl;
+            }
+            // lib.optionalAttrs (filtered ? headers) { inherit (filtered) headers; }
+          else
+            {
+              type = "local";
+              command = [ filtered.command ] ++ (filtered.args or [ ]);
+            }
+            // lib.optionalAttrs (filtered ? env) { environment = filtered.env; }
         else
           cleanedServer // { type = serverType; }
       ) value;
     in
-    if agent == "vscode" then { servers = formattedServers; } else { mcpServers = formattedServers; };
+    if agent == "vscode" then
+      { servers = formattedServers; }
+    else if agent == "opencode" then
+      { mcp = formattedServers; }
+    else
+      { mcpServers = formattedServers; };
 
   memory = {
     commitConventions = ''

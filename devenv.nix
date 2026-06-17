@@ -37,12 +37,13 @@ in
       };
       agents.gemini = {
         enable = true;
-        settings.enable = true;
-        settings.value = lib'.agents.mcpServersForAgent "gemini" mcpServers // {
-          context = {
-            fileName = [ "AGENTS.md" ];
-          };
-        };
+        mcp.enable = true;
+        mcp.servers = lib'.agents.mcpServersForAgent "gemini" mcpServers;
+      };
+      agents.opencode = {
+        enable = true;
+        mcp.enable = true;
+        mcp.servers = lib'.agents.mcpServersForAgent "opencode" mcpServers;
       };
     };
   };
