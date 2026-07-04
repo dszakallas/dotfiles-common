@@ -275,5 +275,11 @@ in
         recursive = true;
       };
     })
+    (mkIf (config.davids.agents.antigravity.enable && config.davids.agents.skills.enable) {
+      home.file.".gemini/config/skills" = {
+        source = assembled-skills;
+        recursive = true;
+      };
+    })
   ]);
 }
