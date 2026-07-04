@@ -14,6 +14,41 @@ let
     mkMerge
     ;
 
+  assembled-skills = pkgs.runCommand "assembled-skills" {
+    entries = lib.mapAttrsToList (name: path: "${name}:${path}") config.davids.agents.skills.entries;
+  } ''
+    mkdir -p $out
+    for entry in $entries; do
+      name=''${entry%%:*}
+      path=''${entry#*:}
+
+      if [ -d "$path/skills" ]; then
+        for skill in "$path"/skills/*; do
+          if [ -d "$skill" ]; then
+            skill_name=$(basename "$skill")
+            if [ ! -e "$out/$skill_name" ]; then
+              ln -s "$skill" "$out/$skill_name"
+            fi
+          fi
+        done
+      elif [ -f "$path/SKILL.md" ]; then
+        if [ ! -e "$out/$name" ]; then
+          ln -s "$path" "$out/$name"
+        fi
+      else
+        find "$path" -maxdepth 2 -name SKILL.md | while read -r skill_md; do
+          skill_dir=$(dirname "$skill_md")
+          skill_name=$(basename "$skill_dir")
+          if [ "$skill_dir" != "$path" ]; then
+            if [ ! -e "$out/$skill_name" ]; then
+              ln -s "$skill_dir" "$out/$skill_name"
+            fi
+          fi
+        done
+      fi
+    done
+  '';
+
   mkAgentModule =
     {
       name,
@@ -119,12 +154,10 @@ let
             home.sessionVariables = sessionVariables;
           }
           (mkIf (cfg.linkSkills && config.davids.agents.skills.enable) {
-            home.file = lib.mapAttrs' (skillName: src: {
-              name = "${cfg.skillsDirectory}/${skillName}";
-              value = {
-                source = src;
-              };
-            }) config.davids.agents.skills.entries;
+            home.file."${cfg.skillsDirectory}" = {
+              source = assembled-skills;
+              recursive = true;
+            };
           })
           (mkIf (cfg.rules != { }) {
             home.file = lib.mapAttrs' (ruleName: rule: {
@@ -237,12 +270,10 @@ in
     antigravityModule.config
     opencodeModule.config
     (mkIf config.davids.agents.skills.enable {
-      home.file = lib.mapAttrs' (name: src: {
-        name = ".agents/skills/${name}";
-        value = {
-          source = src;
-        };
-      }) config.davids.agents.skills.entries;
+      home.file.".agents/skills" = {
+        source = assembled-skills;
+        recursive = true;
+      };
     })
   ]);
 }

@@ -150,9 +150,72 @@ let
     '';
   };
 
+  mkSkill = pkgs: { name, version, src, include ? null, exclude ? [ ] }@args:
+    pkgs.stdenvNoCC.mkDerivation {
+      pname = name;
+      inherit version src;
+
+      includeAll = if include == null then "true" else "false";
+      includeList = if include == null then [ ] else include;
+      excludeList = exclude;
+
+      dontBuild = true;
+
+      installPhase = ''
+        mkdir -p $out
+
+        if [ -d "$src/skills" ]; then
+          search_dir="$src/skills"
+        else
+          search_dir="$src"
+        fi
+
+        find "$search_dir" -name SKILL.md | while read -r skill_md; do
+          skill_dir=$(dirname "$skill_md")
+          
+          if [ "$skill_dir" = "$search_dir" ]; then
+            skill_name="$pname"
+          else
+            skill_name=$(basename "$skill_dir")
+          fi
+
+          is_included=0
+          if [ "$includeAll" = "true" ]; then
+            is_included=1
+          else
+            for item in $includeList; do
+              if [ "$item" = "$skill_name" ]; then
+                is_included=1
+                break
+              fi
+            done
+          fi
+
+          if [ $is_included -eq 1 ]; then
+            is_excluded=0
+            for item in $excludeList; do
+              if [ "$item" = "$skill_name" ]; then
+                is_excluded=1
+                break
+              fi
+            done
+
+            if [ $is_excluded -eq 0 ]; then
+              if [ "$skill_dir" = "$search_dir" ]; then
+                cp -r "$skill_dir"/* "$out/"
+              else
+                mkdir -p "$out/$skill_name"
+                cp -r "$skill_dir"/* "$out/$skill_name/"
+              fi
+            fi
+          fi
+        done
+      '';
+    };
+
 in
 {
   agents = {
-    inherit mcpServersForAgent memory;
+    inherit mcpServersForAgent memory mkSkill;
   };
 }
