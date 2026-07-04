@@ -105,11 +105,53 @@ let
       }
     '';
   };
+
+  assembled-skills = pkgs.runCommand "assembled-skills" {
+    entries = lib.mapAttrsToList (name: path: "${name}:${path}") config.agents.skills.entries;
+  } ''
+    mkdir -p $out
+    for entry in $entries; do
+      name=''${entry%%:*}
+      path=''${entry#*:}
+
+      if [ -d "$path/skills" ]; then
+        for skill in "$path"/skills/*; do
+          if [ -d "$skill" ]; then
+            skill_name=$(basename "$skill")
+            if [ ! -e "$out/$skill_name" ]; then
+              ln -s "$skill" "$out/$skill_name"
+            fi
+          fi
+        done
+      elif [ -f "$path/SKILL.md" ]; then
+        if [ ! -e "$out/$name" ]; then
+          ln -s "$path" "$out/$name"
+        fi
+      else
+        find "$path" -maxdepth 2 -name SKILL.md | while read -r skill_md; do
+          skill_dir=$(dirname "$skill_md")
+          skill_name=$(basename "$skill_dir")
+          if [ "$skill_dir" != "$path" ]; then
+            if [ ! -e "$out/$skill_name" ]; then
+              ln -s "$skill_dir" "$out/$skill_name"
+            fi
+          fi
+        done
+      fi
+    done
+  '';
 in
 {
   options = {
     agents.mcp.enable = lib.mkEnableOption "Enable generic MCP configuration.";
     agents.mcp.servers = mcpServers;
+
+    agents.skills.enable = lib.mkEnableOption "Enable agent skills configuration.";
+    agents.skills.entries = lib.mkOption {
+      type = lib.types.attrsOf lib.types.path;
+      default = { };
+      description = "Agent skills to link. Each attribute name is the skill name and the value is a path or derivation to link.";
+    };
 
     agents.claude.enable = lib.mkEnableOption "Enable Claude coding agent.";
     agents.claude.mcp.enable = lib.mkEnableOption "Enable Claude MCP configuration.";
@@ -117,6 +159,16 @@ in
       type = lib.types.attrs;
       default = { };
       description = "Claude MCP servers configuration.";
+    };
+    agents.claude.linkSkills = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to link agent skills for Claude.";
+    };
+    agents.claude.skillsDirectory = lib.mkOption {
+      type = lib.types.str;
+      default = ".claude/skills";
+      description = "The directory where agent skills are linked for Claude.";
     };
 
     agents.copilot.enable = lib.mkEnableOption "Enable GitHub Copilot coding agent.";
@@ -126,6 +178,16 @@ in
       default = { };
       description = "GitHub Copilot MCP servers configuration.";
     };
+    agents.copilot.linkSkills = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Whether to link agent skills for GitHub Copilot.";
+    };
+    agents.copilot.skillsDirectory = lib.mkOption {
+      type = lib.types.str;
+      default = ".copilot/skills";
+      description = "The directory where agent skills are linked for GitHub Copilot.";
+    };
 
     agents.gemini.enable = lib.mkEnableOption "Enable gemini coding agent.";
     agents.gemini.mcp.enable = lib.mkEnableOption "Enable gemini MCP configuration.";
@@ -133,6 +195,16 @@ in
       type = lib.types.attrs;
       default = { };
       description = "Gemini MCP servers configuration.";
+    };
+    agents.gemini.linkSkills = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Whether to link agent skills for Gemini.";
+    };
+    agents.gemini.skillsDirectory = lib.mkOption {
+      type = lib.types.str;
+      default = ".gemini/skills";
+      description = "The directory where agent skills are linked for Gemini.";
     };
 
     agents.vscode.enable = lib.mkEnableOption "Enable VSCode Copilot coding agent.";
@@ -142,6 +214,16 @@ in
       default = { };
       description = "VSCode Copilot MCP servers configuration.";
     };
+    agents.vscode.linkSkills = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Whether to link agent skills for VSCode.";
+    };
+    agents.vscode.skillsDirectory = lib.mkOption {
+      type = lib.types.str;
+      default = ".vscode/skills";
+      description = "The directory where agent skills are linked for VSCode.";
+    };
 
     agents.opencode.enable = lib.mkEnableOption "Enable opencode coding agent.";
     agents.opencode.mcp.enable = lib.mkEnableOption "Enable opencode MCP configuration.";
@@ -149,6 +231,16 @@ in
       type = lib.types.attrs;
       default = { };
       description = "opencode MCP servers configuration.";
+    };
+    agents.opencode.linkSkills = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to link agent skills for opencode.";
+    };
+    agents.opencode.skillsDirectory = lib.mkOption {
+      type = lib.types.str;
+      default = ".opencode/skills";
+      description = "The directory where agent skills are linked for opencode.";
     };
   };
 
@@ -178,6 +270,42 @@ in
         mkMergeTask "Setup opencode coding agent." "$DEVENV_ROOT/opencode.json"
           config.agents.opencode.mcp.servers
       );
+      "skills:setup" = lib.mkIf config.agents.skills.enable {
+        description = "Setup agent skills for the project.";
+        exec = ''
+          link_skills() {
+            local target="$1"
+            mkdir -p "$target"
+            find "$target" -type l -exec rm -f {} +
+            if [ -d "${assembled-skills}" ]; then
+              for skill in "${assembled-skills}"/*; do
+                if [ -e "$skill" ]; then
+                  ln -sf "$skill" "$target/$(basename "$skill")"
+                fi
+              done
+            fi
+          }
+
+          link_skills "$DEVENV_ROOT/.agents/skills"
+
+          ${lib.optionalString (config.agents.claude.enable && config.agents.claude.linkSkills) ''
+            link_skills "$DEVENV_ROOT/${config.agents.claude.skillsDirectory}"
+          ''}
+          ${lib.optionalString (config.agents.copilot.enable && config.agents.copilot.linkSkills) ''
+            link_skills "$DEVENV_ROOT/${config.agents.copilot.skillsDirectory}"
+          ''}
+          ${lib.optionalString (config.agents.gemini.enable && config.agents.gemini.linkSkills) ''
+            link_skills "$DEVENV_ROOT/${config.agents.gemini.skillsDirectory}"
+          ''}
+          ${lib.optionalString (config.agents.vscode.enable && config.agents.vscode.linkSkills) ''
+            link_skills "$DEVENV_ROOT/${config.agents.vscode.skillsDirectory}"
+          ''}
+          ${lib.optionalString (config.agents.opencode.enable && config.agents.opencode.linkSkills) ''
+            link_skills "$DEVENV_ROOT/${config.agents.opencode.skillsDirectory}"
+          ''}
+        '';
+        before = [ "devenv:enterShell" ];
+      };
     };
   };
 }
