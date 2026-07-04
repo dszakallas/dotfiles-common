@@ -150,11 +150,12 @@ let
     '';
   };
 
-  mkSkill = pkgs: { name, version, src, include ? null, exclude ? [ ] }@args:
+  mkSkill = pkgs: { name, version, src, subDir ? null, include ? null, exclude ? [ ] }@args:
     pkgs.stdenvNoCC.mkDerivation {
       pname = name;
       inherit version src;
 
+      subDir = if subDir == null then "" else subDir;
       includeAll = if include == null then "true" else "false";
       includeList = if include == null then [ ] else include;
       excludeList = exclude;
@@ -164,7 +165,9 @@ let
       installPhase = ''
         mkdir -p $out
 
-        if [ -d "$src/skills" ]; then
+        if [ -n "$subDir" ]; then
+          search_dir="$src/$subDir"
+        elif [ -d "$src/skills" ]; then
           search_dir="$src/skills"
         else
           search_dir="$src"
