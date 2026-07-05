@@ -150,15 +150,15 @@ let
     '';
   };
 
-  mkSkill = pkgs: { name, version, src, subDir ? null, include ? null, exclude ? [ ] }@args:
-    pkgs.stdenvNoCC.mkDerivation {
+  mkSkill = { stdenvNoCC, ... }: { name, version, src, subDir ? null, include ? null, exclude ? null }@args:
+    stdenvNoCC.mkDerivation {
       pname = name;
       inherit version src;
 
       subDir = if subDir == null then "" else subDir;
       includeAll = if include == null then "true" else "false";
       includeList = if include == null then [ ] else include;
-      excludeList = exclude;
+      excludeList = if exclude == null then [ ] else exclude;
 
       dontBuild = true;
 

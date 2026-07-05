@@ -27,3 +27,14 @@ This directory contains reusable Nix library functions used throughout the dotfi
   coding agent (e.g., `vscode`, `claude`, `gemini`, `copilot`). Resolves mutually
   exclusive properties (like `command`, `serverUrl`, `headers`) and outputs them
   according to what each agent accepts.
+- `agents.mkSkill pkgs { name, version, src, subDir ? null, include ? null, exclude ? null }`: Creates a Nix
+  derivation containing AI coding agent skills. It searches the source path for directories containing a `SKILL.md`
+  file, optionally filtering them via `include` and `exclude` lists, and copies them to the output path.
+  - `pkgs`: Package set providing `stdenvNoCC`.
+  - `name`: Derivation name (`pname`).
+  - `version`: Derivation version.
+  - `src`: Source directory containing skills.
+  - `subDir`: Optional subdirectory within `src` to search. Defaults to `"skills"` if it exists, otherwise the root of `src`.
+  - `include`: Optional list of skill names to include. If `null` or omitted, all discovered skills are included.
+  - `exclude`: Optional list of skill names to exclude.
+
