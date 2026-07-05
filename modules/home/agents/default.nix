@@ -14,40 +14,43 @@ let
     mkMerge
     ;
 
-  assembled-skills = pkgs.runCommand "assembled-skills" {
-    entries = lib.mapAttrsToList (name: path: "${name}:${path}") config.davids.agents.skills.entries;
-  } ''
-    mkdir -p $out
-    for entry in $entries; do
-      name=''${entry%%:*}
-      path=''${entry#*:}
+  assembled-skills =
+    pkgs.runCommand "assembled-skills"
+      {
+        entries = lib.mapAttrsToList (name: path: "${name}:${path}") config.davids.agents.skills.entries;
+      }
+      ''
+        mkdir -p $out
+        for entry in $entries; do
+          name=''${entry%%:*}
+          path=''${entry#*:}
 
-      if [ -d "$path/skills" ]; then
-        for skill in "$path"/skills/*; do
-          if [ -d "$skill" ]; then
-            skill_name=$(basename "$skill")
-            if [ ! -e "$out/$skill_name" ]; then
-              ln -s "$skill" "$out/$skill_name"
+          if [ -d "$path/skills" ]; then
+            for skill in "$path"/skills/*; do
+              if [ -d "$skill" ]; then
+                skill_name=$(basename "$skill")
+                if [ ! -e "$out/$skill_name" ]; then
+                  ln -s "$skill" "$out/$skill_name"
+                fi
+              fi
+            done
+          elif [ -f "$path/SKILL.md" ]; then
+            if [ ! -e "$out/$name" ]; then
+              ln -s "$path" "$out/$name"
             fi
+          else
+            find "$path" -maxdepth 2 -name SKILL.md | while read -r skill_md; do
+              skill_dir=$(dirname "$skill_md")
+              skill_name=$(basename "$skill_dir")
+              if [ "$skill_dir" != "$path" ]; then
+                if [ ! -e "$out/$skill_name" ]; then
+                  ln -s "$skill_dir" "$out/$skill_name"
+                fi
+              fi
+            done
           fi
         done
-      elif [ -f "$path/SKILL.md" ]; then
-        if [ ! -e "$out/$name" ]; then
-          ln -s "$path" "$out/$name"
-        fi
-      else
-        find "$path" -maxdepth 2 -name SKILL.md | while read -r skill_md; do
-          skill_dir=$(dirname "$skill_md")
-          skill_name=$(basename "$skill_dir")
-          if [ "$skill_dir" != "$path" ]; then
-            if [ ! -e "$out/$skill_name" ]; then
-              ln -s "$skill_dir" "$out/$skill_name"
-            fi
-          fi
-        done
-      fi
-    done
-  '';
+      '';
 
   mkAgentModule =
     {

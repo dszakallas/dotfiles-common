@@ -51,3 +51,6 @@
 	defaultBranch = main
 [include]
 	path = ./.local/share/gitconfig
+
+[credential]
+	useHttpPath = true

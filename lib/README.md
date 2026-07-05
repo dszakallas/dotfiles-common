@@ -37,4 +37,3 @@ This directory contains reusable Nix library functions used throughout the dotfi
   - `subDir`: Optional subdirectory within `src` to search. Defaults to `"skills"` if it exists, otherwise the root of `src`.
   - `include`: Optional list of skill names to include. If `null` or omitted, all discovered skills are included.
   - `exclude`: Optional list of skill names to exclude.
-

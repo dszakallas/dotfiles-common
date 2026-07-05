@@ -110,7 +110,13 @@ in
     davids.git.configLines = mkIf config.davids.git.enable (
       ctx.lib.textRegion {
         name = moduleName;
-        content = builtins.readFile ./gitconfig;
+        content =
+          builtins.readFile ./gitconfig
+          + (lib.optionalString hostPlatform.isDarwin ''
+
+            [credential]
+            	helper = osxkeychain
+          '');
       }
     );
     home = {

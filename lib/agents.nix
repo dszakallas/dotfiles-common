@@ -150,7 +150,16 @@ let
     '';
   };
 
-  mkSkill = { stdenvNoCC, ... }: { name, version, src, subDir ? null, include ? null, exclude ? null }@args:
+  mkSkill =
+    { stdenvNoCC, ... }:
+    {
+      name,
+      version,
+      src,
+      subDir ? null,
+      include ? null,
+      exclude ? null,
+    }@args:
     stdenvNoCC.mkDerivation {
       pname = name;
       inherit version src;
