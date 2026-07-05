@@ -176,21 +176,12 @@ let
 
         if [ -n "$subDir" ]; then
           search_dir="$src/$subDir"
-        elif [ -d "$src/skills" ]; then
-          search_dir="$src/skills"
         else
           search_dir="$src"
         fi
 
-        find "$search_dir" -name SKILL.md | while read -r skill_md; do
-          skill_dir=$(dirname "$skill_md")
-          
-          if [ "$skill_dir" = "$search_dir" ]; then
-            skill_name="$pname"
-          else
-            skill_name=$(basename "$skill_dir")
-          fi
-
+        if [ -f "$search_dir/SKILL.md" ]; then
+          skill_name="$pname"
           is_included=0
           if [ "$includeAll" = "true" ]; then
             is_included=1
@@ -213,15 +204,45 @@ let
             done
 
             if [ $is_excluded -eq 0 ]; then
-              if [ "$skill_dir" = "$search_dir" ]; then
-                cp -r "$skill_dir"/* "$out/"
-              else
+              cp -r "$search_dir"/* "$out/"
+            fi
+          fi
+        elif [ -d "$search_dir/skills" ]; then
+          find "$search_dir/skills" -maxdepth 2 -name SKILL.md | while read -r skill_md; do
+            skill_dir=$(dirname "$skill_md")
+            if [ "$skill_dir" = "$search_dir/skills" ]; then
+              continue
+            fi
+            skill_name=$(basename "$skill_dir")
+
+            is_included=0
+            if [ "$includeAll" = "true" ]; then
+              is_included=1
+            else
+              for item in $includeList; do
+                if [ "$item" = "$skill_name" ]; then
+                  is_included=1
+                  break
+                fi
+              done
+            fi
+
+            if [ $is_included -eq 1 ]; then
+              is_excluded=0
+              for item in $excludeList; do
+                if [ "$item" = "$skill_name" ]; then
+                  is_excluded=1
+                  break
+                fi
+              done
+
+              if [ $is_excluded -eq 0 ]; then
                 mkdir -p "$out/$skill_name"
                 cp -r "$skill_dir"/* "$out/$skill_name/"
               fi
             fi
-          fi
-        done
+          done
+        fi
       '';
     };
 
