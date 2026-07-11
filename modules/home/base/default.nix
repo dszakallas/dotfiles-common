@@ -78,6 +78,9 @@ in
         bool
         str
         listOf
+        either
+        path
+        nullOr
         ;
     in
     {
@@ -98,6 +101,23 @@ in
           type = lines;
           description = "Lines to add to the user-wide git config file";
           default = "";
+        };
+        includes = mkOption {
+          type = listOf (submodule {
+            options = {
+              includeIf = mkOption {
+                type = nullOr str;
+                default = null;
+                description = "Condition for conditional include (includeIf). If null, a standard include is generated.";
+              };
+              path = mkOption {
+                type = either path str;
+                description = "The path to the git config file to include. Can be a Nix store path or a string representing a path.";
+              };
+            };
+          });
+          default = [ ];
+          description = "External git config files to include";
         };
         authentication = {
           rules = mkOption {
@@ -190,6 +210,23 @@ in
               sshBlock + credBlock;
           in
           builtins.concatStringsSep "" (map genRule config.davids.git.authentication.rules);
+
+        includesConfig =
+          let
+            genInclude =
+              inc:
+              if inc.includeIf != null && inc.includeIf != "" then
+                ''
+                  [includeIf "${inc.includeIf}"]
+                    path = ${toString inc.path}
+                ''
+              else
+                ''
+                  [include]
+                    path = ${toString inc.path}
+                '';
+          in
+          builtins.concatStringsSep "" (map genInclude config.davids.git.includes);
       in
       ctx.lib.textRegion {
         name = moduleName;
@@ -204,6 +241,11 @@ in
 
             # Generated git authentication rules
             ${authConfig}
+          '')
+          + (lib.optionalString (includesConfig != "") ''
+
+            # Included git config files
+            ${includesConfig}
           '');
       }
     );
