@@ -77,6 +77,7 @@ in
         submodule
         bool
         str
+        listOf
         ;
     in
     {
@@ -98,6 +99,55 @@ in
           description = "Lines to add to the user-wide git config file";
           default = "";
         };
+        authentication = {
+          rules = mkOption {
+            type = listOf (submodule {
+              options = {
+                pathPrefix = mkOption {
+                  type = str;
+                  default = "";
+                  description = "The repository path prefix to match (e.g. org name, or empty for all)";
+                };
+                credential = {
+                  enable = mkOption {
+                    type = bool;
+                    default = false;
+                    description = "Whether to configure git credentials for this prefix";
+                  };
+                  username = mkOption {
+                    type = str;
+                    default = "";
+                    description = "The credential username";
+                  };
+                };
+                ssh = {
+                  enable = mkOption {
+                    type = bool;
+                    default = false;
+                    description = "Whether to configure SSH rewrite rules for this prefix";
+                  };
+                  user = mkOption {
+                    type = str;
+                    default = "git";
+                    description = "The SSH username to use";
+                  };
+                  hostAlias = mkOption {
+                    type = str;
+                    default = "github.com";
+                    description = "The SSH host alias/hostname to use";
+                  };
+                  pushOnly = mkOption {
+                    type = bool;
+                    default = false;
+                    description = "Whether to only rewrite urls when pushing";
+                  };
+                };
+              };
+            });
+            default = [ ];
+            description = "Rules to generate Git authentication configuration";
+          };
+        };
       };
     };
   config = {
@@ -108,6 +158,39 @@ in
       }
     );
     davids.git.configLines = mkIf config.davids.git.enable (
+      let
+        authConfig =
+          let
+            genRule =
+              rule:
+              let
+                suffix = rule.pathPrefix;
+                sshBlock =
+                  if rule.ssh.enable then
+                    let
+                      insteadOfKey = if rule.ssh.pushOnly then "pushInsteadOf" else "insteadOf";
+                      gitSshUrl = "git@github.com:${suffix}";
+                    in
+                    ''
+                      [url "ssh://${rule.ssh.user}@${rule.ssh.hostAlias}/${suffix}"]
+                        insteadOf = ${gitSshUrl}
+                        ${insteadOfKey} = https://github.com/${suffix}
+                    ''
+                  else
+                    "";
+                credBlock =
+                  if rule.credential.enable then
+                    ''
+                      [credential "https://github.com/${suffix}"]
+                        username = ${rule.credential.username}
+                    ''
+                  else
+                    "";
+              in
+              sshBlock + credBlock;
+          in
+          builtins.concatStringsSep "" (map genRule config.davids.git.authentication.rules);
+      in
       ctx.lib.textRegion {
         name = moduleName;
         content =
@@ -116,6 +199,11 @@ in
 
             [credential]
             	helper = osxkeychain
+          '')
+          + (lib.optionalString (authConfig != "") ''
+
+            # Generated git authentication rules
+            ${authConfig}
           '');
       }
     );
