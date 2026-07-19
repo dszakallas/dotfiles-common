@@ -14,6 +14,13 @@ let
 in
 {
   imports = (lib.attrsets.attrValues (lib'.importRec1 ./modules/devenv ctx));
+  git-hooks.hooks = {
+    markdownlint = {
+      excludes = [
+        "skills/.*"
+      ];
+    };
+  };
   profiles = {
     "test-agents".module = {
       agents.mcp = {

@@ -20,13 +20,15 @@ This directory contains reusable Nix library functions used throughout the dotfi
   text with begin/end markers. Useful for identifying the origin of blocks in generated
   configuration files.
 
-## Agents (`agents.nix`)
+## Agents (`agents/`)
+
+For a comprehensive guide to the MCP server configuration schema, see [agents/README.md](agents/README.md).
 
 - `agents.mcpServersForAgent agent value`: Transforms a generic `mcpServers`
   attribute set mapping into configurations specifically formatted for a particular AI
-  coding agent (e.g., `vscode`, `claude`, `gemini`, `copilot`). Resolves mutually
+  coding agent (e.g., `vscode`, `claude`, `gemini`, `copilot`, `opencode`, `antigravity`). Resolves mutually
   exclusive properties (like `command`, `serverUrl`, `headers`) and outputs them
-  according to what each agent accepts.
+  according to what each agent accepts. See [agents/README.md](agents/README.md) for full schema details.
 - `agents.mkSkill pkgs { name, version, src, subDir ? null, include ? null, exclude ? null }`: Creates a Nix
   derivation containing AI coding agent skills. It searches the source path for directories containing a `SKILL.md`
   file, optionally filtering them via `include` and `exclude` lists, and copies them to the output path.

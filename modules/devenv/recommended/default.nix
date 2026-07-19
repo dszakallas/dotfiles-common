@@ -13,7 +13,6 @@ _:
     nixfmt.enable = true;
     markdownlint = {
       enable = true;
-      excludes = [ "^skills/.*" ];
       settings.configuration = {
         MD013.line_length = 120;
         MD041 = false;

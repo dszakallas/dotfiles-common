@@ -61,7 +61,6 @@ let
 in
 {
   imports = [
-    (import ./ssh.nix ctx)
     (import ./fzf.nix ctx)
     (import ./k8s.nix ctx)
     (import ./go.nix ctx)
@@ -84,12 +83,6 @@ in
         ;
     in
     {
-      davids.gpg.enable = mkEnableOption "GPG goodies";
-      davids.gpg.defaultKey = mkOption {
-        type = str;
-        description = "Default GPG key to use";
-        default = "";
-      };
       davids.git = {
         enable = mkEnableOption "Git goodies";
         excludesLines = mkOption {
@@ -291,36 +284,6 @@ in
       ];
       file.".ssh/davids.known_hosts" = mkIf config.davids.ssh.enable {
         text = config.davids.ssh.knownHostsLines;
-      };
-      file.".gnupg/gpg-agent.conf" = mkIf config.davids.gpg.enable {
-        text = ctx.lib.textRegion {
-          name = moduleName;
-          content = ''
-            default-cache-ttl 600
-            max-cache-ttl 7200
-            enable-ssh-support
-          '';
-        };
-      };
-      file.".gnupg/gpg.conf" = mkIf config.davids.gpg.enable {
-        text = ctx.lib.textRegion {
-          name = moduleName;
-          content = ''
-            auto-key-retrieve
-            no-emit-version
-            personal-digest-preferences SHA512
-            cert-digest-algo SHA512
-            default-preference-list SHA512 SHA384 SHA256 SHA224 AES256 AES192 AES CAST5 ZLIB BZIP2 ZIP Uncompressed
-          ''
-          + (
-            if (config.davids.gpg.defaultKey != "") then
-              ''
-                default-key ${config.davids.gpg.defaultKey};
-              ''
-            else
-              ""
-          );
-        };
       };
     };
     programs = {
