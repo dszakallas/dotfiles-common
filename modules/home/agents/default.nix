@@ -216,7 +216,8 @@ let
     defaultUserDirectory = ".claude";
     defaultMemoryFile = "CLAUDE.md";
     defaultLinkSkills = true;
-    defaultMcpTarget = ".claude.json";
+    # Config lives under CLAUDE_CONFIG_DIR (set below), not $HOME/.claude.json.
+    defaultMcpTarget = ".claude/.claude.json";
     sessionVariables = {
       CLAUDE_CONFIG_DIR = "$HOME/.claude";
     };
